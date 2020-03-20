@@ -34,6 +34,4 @@ pause(1)
 %stitch overlaping features
 dev1.joinFeatures();    
 dev1.plot()
-%output a DXF file
-dev1.DXF_out('delafossite.dxf');
 end
