@@ -1,4 +1,4 @@
-import matplotlib as mpl
+import matplotlib as plt
 import numpy as np
 
 class Device:
