@@ -1,18 +1,17 @@
-function dev1 = runHallBar()
+function dev1 = runDelafossiteBar(lengthBar,widthBar)
 
 %device body properties
-width = 2;
-bodySQ = 2;
-injSQ = 0.5;
+% lengthBar = 174;
+% widthBar = 6.7;
 
     
 %make the device body
-dev1 = hallBar(width,bodySQ,injSQ);
+dev1 = delafossiteBar(lengthBar,widthBar);
 dev1.plot()
 pause(1)
 
 %add ohmics
-dev1.addEtch()
+dev1.addOhmics()
 dev1.plot()
 pause(1)
 
