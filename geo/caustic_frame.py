@@ -102,6 +102,9 @@ class Frame:
         fig = plt.figure()
         for edge in self.edges:
             x, y = list(zip(*edge[0]))
-            plt.plot(x, y, color='C'+str(edge[1]))
+            if edge[1] == 0:
+                plt.plot(x, y, color='k')
+            else:
+                plt.plot(x, y, color='C'+str(edge[1]-1))
 
         return fig
