@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import ezdxf
 from ezdxf.groupby import groupby
 from shapely.geometry import Polygon
-from shapely.geometry.polygon import orient
 from shapely.geometry import LineString
+from shapely.geometry.polygon import orient
 
 
 class Frame:
@@ -33,7 +33,6 @@ class Frame:
 
         if len(layers['0']) != 1:
             if len(layers['0']) == 0:
-                # ValueError is not technically the right error here
                 raise ValueError(
                     'Body (layer 0) does not exist, assign to layer 0')
             else:
@@ -79,6 +78,7 @@ class Frame:
                     inter = self.body.intersection(ohm)
                     self.body = self.body.union(inter)
 
+        self.body = orient(self.body, -1)  # order clockwise
         xs, ys = self.body.exterior.coords.xy
         edgestyle = [0] * (len(xs) - 1)
 
