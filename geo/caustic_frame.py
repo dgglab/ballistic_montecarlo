@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 import ezdxf
 from ezdxf.groupby import groupby
@@ -46,6 +47,7 @@ class Frame:
 
         self._extract_points(layers)
         self._gen_frame()
+        self._get_edgenorms()
 
     def _extract_points(self, layers):
         '''
@@ -94,6 +96,16 @@ class Frame:
         self.edges = []
         for i, (x, y) in enumerate(zip(xs[:-1], ys[:-1])):
             self.edges.append(([(x, y), (xs[i+1], ys[i+1])], edgestyle[i]))
+
+    def _get_edgenorms(self):
+        '''
+        Compute the normals for each edge in edges
+        '''
+        self.edgenorms = []
+        for edge in self.edges:
+            phi = np.arctan2(edge[0][1][1]-edge[0][0][1],
+                             edge[0][1][0]-edge[0][0][0])
+            self.edgenorms.append(phi-np.pi/2)
 
     def gen_fig(self):
         '''
