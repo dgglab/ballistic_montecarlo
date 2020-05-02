@@ -1,0 +1,11 @@
+name: ballistic_montecarlo
+channels:
+  - defaults
+dependencies:
+  - python=3.6
+  - numpy
+  - jupyterlab
+  - matplotlib
+  - pip
+  - pip:
+    - ezdxf
