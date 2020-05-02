@@ -120,3 +120,8 @@ class Frame:
                 plt.plot(x, y, color='C'+str(edge[1]-1))
 
         return fig
+
+    def get_inject_position(self, edgestyle):
+        '''
+        Randomly pick a position along the perimeter of a given ohmic edge
+        '''

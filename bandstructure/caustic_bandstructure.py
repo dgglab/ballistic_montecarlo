@@ -27,9 +27,6 @@ class Bandstructure:
         B_scaled = B*(scipy.constants.e) * \
             1E-16/(scipy.constants.hbar)  # T*C/hbar
 
-        # Here we are computing the integral across ks to back out the real
-        # space trajectory. In the end, you find the following equations
-
         kx, ky = self.k
         kx, ky = [kx[::np.sign(B)], ky[::np.sign(B)]]
         rx = (1/B_scaled) * (ky - ky[0])
@@ -49,7 +46,6 @@ class Bandstructure:
         '''
 
         # TODO fix keying of dict to be indexing
-        # TODO normalize distribution
 
         self.in_prob = {}
         self.cum_prob = {}
