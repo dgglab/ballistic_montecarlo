@@ -39,17 +39,35 @@ class Bandstructure:
         self.r = [rx - np.mean(rx), ry - np.mean(ry)]
         self.dr = np.diff(self.r)
 
+    def get_accent_color(self):
+        return 'gotem'
+
     def calculate_injection_probs(self, edgenorms):
         '''
         computes the injection probabilities for a given state for
         an edge according to its normal
         '''
+
+        # TODO fix keying of dict to be indexing
+        # TODO normalize distribution
+
         self.in_prob = {}
+        self.cum_prob = {}
 
         S = np.sqrt(self.dr[0]**2 + self.dr[1]**2)
+        S_max = np.max(S)
         theta = np.arctan2(self.dr[1], self.dr[0])
 
         for norm in set(edgenorms):
-            prob = np.cos(theta - norm) * S/np.max(S)
+            prob = np.cos(theta - norm) * S/S_max
             prob = [0 if p < 0 else p for p in prob]
-            self.in_prob[norm] = np.append(prob, prob[0])
+            prob = prob/np.sum(prob)
+            self.in_prob[norm] = prob
+            self.cum_prob[norm] = np.cumsum(self.in_prob[norm])
+
+    def get_injection_index(self, edgenorm):
+
+        # TODO handle multiple edgenorms? Corner collison
+        # TODO add fractional index injection
+
+        return np.argmax(self.cum_prob[edgenorm] > np.random.rand())
