@@ -36,10 +36,7 @@ class Bandstructure:
         self.r = [rx - np.mean(rx), ry - np.mean(ry)]
         self.dr = np.diff(self.r)
 
-    def get_accent_color(self):
-        return 'gotem'
-
-    def calculate_injection_probs(self, edgenorms):
+    def calculate_injection_probs(self, normal):
         '''
         computes the injection probabilities for a given state for
         an edge according to its normal
@@ -54,12 +51,14 @@ class Bandstructure:
         S_max = np.max(S)
         theta = np.arctan2(self.dr[1], self.dr[0])
 
-        for norm in set(edgenorms):
-            prob = np.cos(theta - norm) * S/S_max
-            prob = [0 if p < 0 else p for p in prob]
-            prob = prob/np.sum(prob)
-            self.in_prob[norm] = prob
-            self.cum_prob[norm] = np.cumsum(self.in_prob[norm])
+        prob = np.cos(theta - normal) * S/S_max
+        prob = [0 if p < 0 else p for p in prob]
+        prob = prob/np.sum(prob)
+        self.in_prob[normal] = prob
+        self.cum_prob[normal] = np.cumsum(self.in_prob[normal])
+
+
+    # TODO move this code to caustic frame and store in prob in the edge
 
     def get_injection_index(self, edgenorm):
 
