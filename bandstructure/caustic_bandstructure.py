@@ -57,9 +57,6 @@ class Bandstructure:
         self.in_prob[normal] = prob
         self.cum_prob[normal] = np.cumsum(self.in_prob[normal])
 
-
-    # TODO move this code to caustic frame and store in prob in the edge
-
     def get_injection_index(self, edgenorm):
 
         # TODO handle multiple edgenorms? Corner collison
