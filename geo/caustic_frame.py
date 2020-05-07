@@ -128,7 +128,7 @@ class Frame:
         edge_prob = np.cumsum(lengths)/np.sum(lengths)
         ind = np.argmax(edge_prob > r)
 
-        injecting_edge = edges_in_layer[np.argmax(ind)]
+        injecting_edge = edges_in_layer[ind]
 
         # Scale the random number to the fractional position along the chosen edge
         if ind > 0:
@@ -150,6 +150,7 @@ class Edge:
         self.layer = layer
         self.length = np.sqrt((x1-x0)**2 + (y1-y0)**2)
         self.normal = np.arctan2(y1-y0, x1-x0) - np.pi/2
+        self.linestring = LineString([(x0, y0), (x1, y1)])
 
     def __repr__(self):
         return '(({0}, {1}), ({2}, {3}), {4})'.format(self.start[0], self.start[1], self.end[0], self.end[1], self.layer)
@@ -161,3 +162,14 @@ class Edge:
         x = self.start[0] + f * (self.end[0] - self.start[0])
         y = self.start[1] + f * (self.end[1] - self.start[1])
         return(x, y)
+
+    def set_in_prob(self, in_prob, cum_prob):
+        self.in_prob = in_prob
+        self.cum_prob = cum_prob
+
+    def get_injection_index(self):
+
+        # TODO handle multiple edgenorms? Corner collison
+        # TODO add fractional index injection
+
+        return np.argmax(self.cum_prob > np.random.rand())

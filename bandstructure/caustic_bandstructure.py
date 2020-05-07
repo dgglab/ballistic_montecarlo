@@ -4,7 +4,6 @@ import scipy.constants
 
 class Bandstructure:
     def __init__(self, k, phi, B):
-        # TODO check that first and last k are the same, probably needs some rounding
         self.k = k
         self.phi = phi
 
@@ -36,16 +35,11 @@ class Bandstructure:
         self.r = [rx - np.mean(rx), ry - np.mean(ry)]
         self.dr = np.diff(self.r)
 
-    def calculate_injection_probs(self, normal):
+    def calculate_injection_prob(self, normal):
         '''
         computes the injection probabilities for a given state for
         an edge according to its normal
         '''
-
-        # TODO fix keying of dict to be indexing
-
-        self.in_prob = {}
-        self.cum_prob = {}
 
         S = np.sqrt(self.dr[0]**2 + self.dr[1]**2)
         S_max = np.max(S)
@@ -54,12 +48,4 @@ class Bandstructure:
         prob = np.cos(theta - normal) * S/S_max
         prob = [0 if p < 0 else p for p in prob]
         prob = prob/np.sum(prob)
-        self.in_prob[normal] = prob
-        self.cum_prob[normal] = np.cumsum(self.in_prob[normal])
-
-    def get_injection_index(self, edgenorm):
-
-        # TODO handle multiple edgenorms? Corner collison
-        # TODO add fractional index injection
-
-        return np.argmax(self.cum_prob[edgenorm] > np.random.rand())
+        return prob, np.cumsum(prob)
