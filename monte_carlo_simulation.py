@@ -1,6 +1,10 @@
 import numpy as np
 from bandstructure.caustic_bandstructure import Bandstructure
+from geo.caustic_frame import Edge
 from shapely.geometry import LineString
+from shapely.geometry import Point
+
+# TODO Deterministic, set a seed
 
 
 class Simulation:
@@ -19,70 +23,116 @@ class Simulation:
                 edge.normal)
             edge.set_in_prob(in_prob, cum_prob)
 
-    def run_simulation(self):
-        x_store = []
-        y_store = []
-        n_store = []
+    def run_simulation(self, debug=False):
+        trajectories = []
+        self.debug = debug
 
         for _ in range(self.n_inject):
-            x_cur_store = []
-            y_cur_store = []
-            n_cur_store = []
+            trajectory = []
 
             (x, y), injecting_edge = self.frame.get_inject_position(1)
             n = injecting_edge.get_injection_index()
 
-            x_cur_store.append(x)
-            y_cur_store.append(y)
-            n_cur_store.append(n)
+            trajectory.append((n, x, y))
 
             active_trajectory = True
             while active_trajectory:
-                [x_new, y_new], n_new = self.update_position([x, y], n)
+                n, x, y, active_trajectory = self.step_position(n, x, y)
+                trajectory.append((n, x, y))
 
-                # Can do floating point calc to save time here
-                intersection = False
-                intersection_edges = []
-                for edge in self.frame.edges:
-                    step = LineString([(x, y), (x_new, y_new)])
-                    edge_int = step.intersects(edge.linestring)
-                    if edge_int:
-                        intersection = True
-                        intersection_edges.append(edge)
+            trajectories.append(trajectory)
 
-                # this code will not work if there are multiple intersections beyond the start point
-                if intersection:
-                    for edge in intersection_edges:
-                        x_int, y_int = step.intersection(
-                            edge.linestring).coords.xy
-                        if x_int[0] != x or y_int[0] != y:
-                            x_new = x_int[0]
-                            y_new = y_int[0]
+        return trajectories
 
-                            if edge.layer == 0:
-                                n_new = self.scatter(edge)
-                            if edge.layer == 1:
-                                n_new = self.scatter(edge)
-                            if edge.layer == 2:
-                                active_trajectory = False
+    def step_position(self, n, x, y):
+        active_trajectory = True
+        if self.debug and not self.frame.body.intersects(Point(x, y)):
+            print('Previous step stepped out of bounds')
+            return n, x, y, False
 
-                x = x_new
-                y = y_new
-                n = n_new
-                x_cur_store.append(x)
-                y_cur_store.append(y)
-                n_cur_store.append(n)
+        n_new, x_new, y_new = self.update_position(n, x, y)
 
-            x_store.append(x_cur_store)
-            y_store.append(y_cur_store)
-            n_store.append(n_cur_store)
+        line_step = LineString([(x, y), (x_new, y_new)])
+        intersections = self.get_sorted_intersections(line_step)
 
-        return x_store, y_store, n_store
+        if len(intersections) == 0:
+            pass
+        # Single edge intersection
+        elif len(intersections) == 1 or intersections[0][3] != intersections[1][3]:
+            edge, x_new, y_new, _ = intersections[0]
+            if edge.layer == 0:
+                n_new = self.scatter(edge)
+            elif edge.layer == 2:
+                active_trajectory = False
+            else:
+                n_new = self.scatter(edge)
+        # Corner intersection
+        else:
+            edge_0, x_new, y_new, _ = intersections[0]
+            edge_1, _, _, _ = intersections[1]
 
-    def update_position(self, r, n):
-        r = r + self.bandstructure.dr[:, n]
+            layer = np.max(edge_0.layer, edge_1.layer)
+            if layer == 0:
+                n_new = self.corner_scatter(edge_0, edge_1)
+            elif layer == 2:
+                active_trajectory = False
+            else:
+                n_new = self.corner_scatter(edge_0, edge_1)
+
+        return n_new, x_new, y_new, active_trajectory
+
+    def update_position(self, n, x, y):
+        [x, y] = [x, y] + self.bandstructure.dr[:, n]
         n = (n + 1) % (np.shape(self.bandstructure.dr)[1])
-        return r, n
+        return n, x, y
 
     def scatter(self, edge):
         return edge.get_injection_index()
+
+    def corner_scatter(self, edge_0, edge_1):
+        # Convolve the probility distributions
+        in_prob = (edge_0.in_prob*edge_1.in_prob) / \
+            np.sum(edge_0.in_prob*edge_1.in_prob)
+        cum_prob = np.cumsum(in_prob)
+        return Edge.compute_injection_index(cum_prob)
+
+    def get_sorted_intersections(self, line_step):
+        '''
+        Calls get intersctions and sorts the returned intersctions by their distance
+        '''
+        x = line_step.coords.xy[0][0]
+        y = line_step.coords.xy[1][0]
+        intersections = self.get_intersections(line_step)
+
+        def compute_s(intersection):
+            edge, x_int, y_int = intersection
+            S = np.sqrt((x_int - x)**2 + (y_int - y)**2)
+            return (edge, x_int, y_int, S)
+
+        intersections_with_S = map(compute_s, intersections)
+
+        return sorted(intersections_with_S, key=lambda intersections: intersections[3])
+
+    def get_intersections(self, line_step):
+        '''
+        Given a step, check all the edges in the frame to see if the step crosses
+        Return True if it does and a list of crossed edges
+        '''
+        # TODO? Can do floating point calc to save time here
+
+        # TODO this code will not work if there are multiple intersections beyond the start point
+        # will want to check for the intersection closests to the starting point
+        x = line_step.coords.xy[0][0]
+        y = line_step.coords.xy[1][0]
+
+        intersections = []
+        for edge in self.frame.edges:
+            edge_int = line_step.intersects(edge.linestring)
+            if edge_int:
+                x_int, y_int = line_step.intersection(
+                    edge.linestring).coords.xy
+
+                if x_int[0] != x or y_int[0] != y:
+                    intersections.append((edge, x_int[0], y_int[0]))
+
+        return intersections

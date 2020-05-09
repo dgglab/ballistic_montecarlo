@@ -122,7 +122,9 @@ class Frame:
         if not edges_in_layer:
             raise ValueError('No edges in given layer')
 
-        r = np.random.rand()
+        r = 0  # We are forcing r in (0, 1), to not return a corner
+        while r == 0:
+            r = np.random.rand()
 
         lengths = [edge.length for edge in edges_in_layer]
         edge_prob = np.cumsum(lengths)/np.sum(lengths)
@@ -168,8 +170,10 @@ class Edge:
         self.cum_prob = cum_prob
 
     def get_injection_index(self):
+        return Edge.compute_injection_index(self.cum_prob)
 
+    @staticmethod
+    def compute_injection_index(cum_prob):
         # TODO handle multiple edgenorms? Corner collison
         # TODO add fractional index injection
-
-        return np.argmax(self.cum_prob > np.random.rand())
+        return np.argmax(cum_prob > np.random.rand())

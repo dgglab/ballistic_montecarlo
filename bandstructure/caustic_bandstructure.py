@@ -27,7 +27,7 @@ class Bandstructure:
             1E-16/(scipy.constants.hbar)  # T*C/hbar
 
         kx, ky = self.k
-        kx, ky = [kx[::np.sign(B)], ky[::np.sign(B)]]
+        kx, ky = [kx[::int(np.sign(B))], ky[::int(np.sign(B))]]
         rx = (1/B_scaled) * (ky - ky[0])
         ry = -(1/B_scaled) * (kx + kx[0])
 
