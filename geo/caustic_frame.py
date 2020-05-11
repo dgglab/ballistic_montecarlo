@@ -174,6 +174,5 @@ class Edge:
 
     @staticmethod
     def compute_injection_index(cum_prob):
-        # TODO handle multiple edgenorms? Corner collison
         # TODO add fractional index injection
         return np.argmax(cum_prob > np.random.rand())

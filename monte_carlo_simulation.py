@@ -8,12 +8,14 @@ from shapely.geometry import Point
 
 
 class Simulation:
-    def __init__(self, frame, k, phi, B, n_inject):
+    def __init__(self, frame, k, phi, B, n_inject, p_scatter=1, p_ohmic_absorb=1):
         self.frame = frame
         self.bandstructure = Bandstructure(k, phi, B)
         self.B = B
         self.phi = phi
         self.n_inject = n_inject
+        self.p_scatter = p_scatter
+        self.p_ohmic_absorb = p_ohmic_absorb
 
         self.calculate_injection_probs()
 
@@ -60,23 +62,81 @@ class Simulation:
         # Single edge intersection
         elif len(intersections) == 1 or intersections[0][3] != intersections[1][3]:
             edge, x_new, y_new, _ = intersections[0]
-            if edge.layer == 0:
-                n_new = self.scatter(edge)
-            elif edge.layer == 2:
-                active_trajectory = False
-            else:
-                n_new = self.scatter(edge)
+
+            if edge.layer == 0:  # Device edge
+                r = np.random.rand()
+                if r < self.p_scatter:
+                    n_new = self.scatter(edge)
+                else:
+                    # replace with specular reflection
+                    n_new = self.scatter(edge)
+
+            elif edge.layer == 2:  # Grounded ohmic
+                r = np.random.rand()
+                if r < self.p_ohmic_absorb:
+                    active_trajectory = False
+                else:
+                    r = np.random.rand()
+                    if r < self.p_scatter:
+                        n_new = self.scatter(edge)
+                    else:
+                        # replace with specular reflection
+                        n_new = self.scatter(edge)
+
+            else:  # Generic ohmic
+                r = np.random.rand()
+                if r < self.p_ohmic_absorb:  # absorb and reemit
+                    (x_new, y_new), reinjecting_edge = self.frame.get_inject_position(
+                        edge.layer)
+                    n_new = reinjecting_edge.get_injection_index()
+                else:
+                    r = np.random.rand()
+                    if r < self.p_scatter:
+                        n_new = self.scatter(edge)
+                    else:
+                        # replace with specular reflection
+                        n_new = self.scatter(edge)
+
         # Corner intersection
         else:
             edge_0, x_new, y_new, _ = intersections[0]
             edge_1, _, _, _ = intersections[1]
 
             layer = np.max(edge_0.layer, edge_1.layer)
-            if layer == 0:
-                n_new = self.corner_scatter(edge_0, edge_1)
-            elif layer == 2:
-                active_trajectory = False
-            else:
+
+            if layer == 0:  # Device edge
+                r = np.random.rand()
+                if r < self.p_scatter:
+                    n_new = self.corner_scatter(edge_0, edge_1)
+                else:
+                    # replace with specular reflection
+                    n_new = self.corner_scatter(edge_0, edge_1)
+
+            elif layer == 2:  # Grounded ohmic
+                r = np.random.rand()
+                if r < self.p_ohmic_absorb:
+                    active_trajectory = False
+                else:
+                    r = np.random.rand()
+                    if r < self.p_scatter:
+                        n_new = self.corner_scatter(edge_0, edge_1)
+                    else:
+                        # replace with specular reflection
+                        n_new = self.corner_scatter(edge_0, edge_1)
+
+            else:  # Generic ohmic
+                r = np.random.rand()
+                if r < self.p_ohmic_absorb:  # absorb and reemit
+                    (x_new, y_new), reinjecting_edge = self.frame.get_inject_position(layer)
+                    n_new = reinjecting_edge.get_injection_index()
+                else:
+                    r = np.random.rand()
+                    if r < self.p_scatter:
+                        n_new = self.corner_scatter(edge_0, edge_1)
+                    else:
+                        # replace with specular reflection
+                        n_new = self.corner_scatter(edge_0, edge_1)
+
                 n_new = self.corner_scatter(edge_0, edge_1)
 
         return n_new, x_new, y_new, active_trajectory
@@ -119,9 +179,6 @@ class Simulation:
         Return True if it does and a list of crossed edges
         '''
         # TODO? Can do floating point calc to save time here
-
-        # TODO this code will not work if there are multiple intersections beyond the start point
-        # will want to check for the intersection closests to the starting point
         x = line_step.coords.xy[0][0]
         y = line_step.coords.xy[1][0]
 
