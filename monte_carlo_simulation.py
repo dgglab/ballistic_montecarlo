@@ -1,10 +1,9 @@
+import time
 import numpy as np
 from bandstructure.caustic_bandstructure import Bandstructure
 from geo.caustic_frame import Edge
 from shapely.geometry import LineString
 from shapely.geometry import Point
-
-# TODO Deterministic, set a seed
 
 
 class Simulation:
@@ -17,7 +16,13 @@ class Simulation:
         self.p_scatter = p_scatter
         self.p_ohmic_absorb = p_ohmic_absorb
 
+        self.set_seed(time.time())
+
         self.calculate_injection_probs()
+
+    def set_seed(self, seed):
+        np.random.seed(int(seed))
+        self.rng_seed = seed
 
     def calculate_injection_probs(self):
         for edge in self.frame.edges:
