@@ -174,5 +174,13 @@ class Edge:
 
     @staticmethod
     def compute_injection_index(cum_prob):
-        # TODO add fractional index injection
-        return np.argmax(cum_prob > np.random.rand())
+        '''
+        Returns an index n which is allowable to inject into and a fractional scaling factor
+        '''
+        r = np.random.rand()
+        n = np.argmax(cum_prob > r)
+        if n == 0:
+            f = 1 - (r) / (cum_prob[n])
+        else:
+            f = 1 - (r - cum_prob[n-1])/(cum_prob[n] - cum_prob[n-1])
+        return (n, f)

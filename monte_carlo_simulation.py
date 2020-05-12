@@ -21,6 +21,7 @@ class Simulation:
         self.calculate_injection_probs()
 
     def set_seed(self, seed):
+        # Will want to use generators when parallelizing
         np.random.seed(int(seed))
         self.rng_seed = seed
 
@@ -38,26 +39,26 @@ class Simulation:
             trajectory = []
 
             (x, y), injecting_edge = self.frame.get_inject_position(1)
-            n = injecting_edge.get_injection_index()
+            n_f = injecting_edge.get_injection_index()
 
-            trajectory.append((n, x, y))
+            trajectory.append((n_f, x, y))
 
             active_trajectory = True
             while active_trajectory:
-                n, x, y, active_trajectory = self.step_position(n, x, y)
-                trajectory.append((n, x, y))
+                n_f, x, y, active_trajectory = self.step_position(n_f, x, y)
+                trajectory.append((n_f, x, y))
 
             trajectories.append(trajectory)
 
         return trajectories
 
-    def step_position(self, n, x, y):
+    def step_position(self, n_f, x, y):
         active_trajectory = True
         if self.debug and not self.frame.body.intersects(Point(x, y)):
             print('Previous step stepped out of bounds')
-            return n, x, y, False
+            return n_f, x, y, False
 
-        n_new, x_new, y_new = self.update_position(n, x, y)
+        n_f_new, x_new, y_new = self.update_position(n_f, x, y)
 
         line_step = LineString([(x, y), (x_new, y_new)])
         intersections = self.get_sorted_intersections(line_step)
@@ -71,10 +72,10 @@ class Simulation:
             if edge.layer == 0:  # Device edge
                 r = np.random.rand()
                 if r < self.p_scatter:
-                    n_new = self.scatter(edge)
+                    n_f_new = self.scatter(edge)
                 else:
                     # replace with specular reflection
-                    n_new = self.scatter(edge)
+                    n_f_new = self.scatter(edge)
 
             elif edge.layer == 2:  # Grounded ohmic
                 r = np.random.rand()
@@ -83,24 +84,24 @@ class Simulation:
                 else:
                     r = np.random.rand()
                     if r < self.p_scatter:
-                        n_new = self.scatter(edge)
+                        n_f_new = self.scatter(edge)
                     else:
                         # replace with specular reflection
-                        n_new = self.scatter(edge)
+                        n_f_new = self.scatter(edge)
 
             else:  # Generic ohmic
                 r = np.random.rand()
                 if r < self.p_ohmic_absorb:  # absorb and reemit
                     (x_new, y_new), reinjecting_edge = self.frame.get_inject_position(
                         edge.layer)
-                    n_new = reinjecting_edge.get_injection_index()
+                    n_f_new = reinjecting_edge.get_injection_index()
                 else:
                     r = np.random.rand()
                     if r < self.p_scatter:
-                        n_new = self.scatter(edge)
+                        n_f_new = self.scatter(edge)
                     else:
                         # replace with specular reflection
-                        n_new = self.scatter(edge)
+                        n_f_new = self.scatter(edge)
 
         # Corner intersection
         else:
@@ -112,10 +113,10 @@ class Simulation:
             if layer == 0:  # Device edge
                 r = np.random.rand()
                 if r < self.p_scatter:
-                    n_new = self.corner_scatter(edge_0, edge_1)
+                    n_f_new = self.corner_scatter(edge_0, edge_1)
                 else:
                     # replace with specular reflection
-                    n_new = self.corner_scatter(edge_0, edge_1)
+                    n_f_new = self.corner_scatter(edge_0, edge_1)
 
             elif layer == 2:  # Grounded ohmic
                 r = np.random.rand()
@@ -124,32 +125,32 @@ class Simulation:
                 else:
                     r = np.random.rand()
                     if r < self.p_scatter:
-                        n_new = self.corner_scatter(edge_0, edge_1)
+                        n_f_new = self.corner_scatter(edge_0, edge_1)
                     else:
                         # replace with specular reflection
-                        n_new = self.corner_scatter(edge_0, edge_1)
+                        n_f_new = self.corner_scatter(edge_0, edge_1)
 
             else:  # Generic ohmic
                 r = np.random.rand()
                 if r < self.p_ohmic_absorb:  # absorb and reemit
                     (x_new, y_new), reinjecting_edge = self.frame.get_inject_position(layer)
-                    n_new = reinjecting_edge.get_injection_index()
+                    n_f_new = reinjecting_edge.get_injection_index()
                 else:
                     r = np.random.rand()
                     if r < self.p_scatter:
-                        n_new = self.corner_scatter(edge_0, edge_1)
+                        n_f_new = self.corner_scatter(edge_0, edge_1)
                     else:
                         # replace with specular reflection
-                        n_new = self.corner_scatter(edge_0, edge_1)
+                        n_f_new = self.corner_scatter(edge_0, edge_1)
 
-                n_new = self.corner_scatter(edge_0, edge_1)
+                n_f_new = self.corner_scatter(edge_0, edge_1)
 
-        return n_new, x_new, y_new, active_trajectory
+        return n_f_new, x_new, y_new, active_trajectory
 
-    def update_position(self, n, x, y):
-        [x, y] = [x, y] + self.bandstructure.dr[:, n]
-        n = (n + 1) % (np.shape(self.bandstructure.dr)[1])
-        return n, x, y
+    def update_position(self, n_f, x, y):
+        [x, y] = [x, y] + n_f[1]*self.bandstructure.dr[:, n_f[0]]
+        n_f = ((n_f[0] + 1) % (np.shape(self.bandstructure.dr)[1]), 1)
+        return n_f, x, y
 
     def scatter(self, edge):
         return edge.get_injection_index()
