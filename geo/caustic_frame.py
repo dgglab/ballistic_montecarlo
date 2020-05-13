@@ -110,7 +110,7 @@ class Frame:
 
         return fig
 
-    def get_inject_position(self, layer):
+    def get_inject_position(self, layer, bias=True):
         '''
         Randomly pick a position along the perimeter of a given ohmic edge
         '''
@@ -140,6 +140,13 @@ class Frame:
 
         (x_inject, y_inject) = injecting_edge.interpolate_frac_positon(r_scaled)
 
+        if bias:
+            bias_vector = 1E-10 * \
+                np.array([np.cos(injecting_edge.normal_angle),
+                          np.sin(injecting_edge.normal_angle)])
+            x_inject += bias_vector[0]
+            y_inject += bias_vector[1]
+
         return (x_inject, y_inject), injecting_edge
 
 
@@ -151,7 +158,7 @@ class Edge:
         self.ys = [y0, y1]
         self.layer = layer
         self.length = np.sqrt((x1-x0)**2 + (y1-y0)**2)
-        self.normal = np.arctan2(y1-y0, x1-x0) - np.pi/2
+        self.normal_angle = np.arctan2(y1-y0, x1-x0) - np.pi/2
         self.linestring = LineString([(x0, y0), (x1, y1)])
 
     def __repr__(self):

@@ -35,17 +35,17 @@ class Bandstructure:
         self.r = [rx - np.mean(rx), ry - np.mean(ry)]
         self.dr = np.diff(self.r)
 
-    def calculate_injection_prob(self, normal):
+    def calculate_injection_prob(self, normal_angle):
         '''
         computes the injection probabilities for a given state for
-        an edge according to its normal
+        an edge according to its normal angle
         '''
 
         S = np.sqrt(self.dr[0]**2 + self.dr[1]**2)
         S_max = np.max(S)
         theta = np.arctan2(self.dr[1], self.dr[0])
 
-        prob = np.cos(theta - normal) * S/S_max
+        prob = np.cos(theta - normal_angle) * S/S_max
         prob = [0 if p < 0 else p for p in prob]
         prob = prob/np.sum(prob)
         return prob, np.cumsum(prob)
