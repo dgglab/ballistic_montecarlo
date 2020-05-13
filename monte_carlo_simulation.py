@@ -50,8 +50,7 @@ class Simulation:
                 x = step_params[-1][1]
                 y = step_params[-1][2]
                 step_params, active_trajectory = self.step_position(n_f, x, y)
-                for step in step_params:
-                    trajectory.append(step)
+                trajectory.extend(step_params)
 
             trajectories.append(trajectory)
 
@@ -67,8 +66,8 @@ class Simulation:
 
         n_f_new, x_new, y_new = self.update_position(n_f, x, y)
 
-        line_step = LineString([(x, y), (x_new, y_new)])
-        intersections = self.get_sorted_intersections(line_step)
+        step_coords = ([(x, y), (x_new, y_new)])
+        intersections = self.get_sorted_intersections(step_coords)
 
         if len(intersections) == 0:
             step_params.append((n_f_new, x_new, y_new))
@@ -186,13 +185,14 @@ class Simulation:
         cum_prob = np.cumsum(in_prob)
         return Edge.compute_injection_index(cum_prob)
 
-    def get_sorted_intersections(self, line_step):
+    def get_sorted_intersections(self, step_coords):
         '''
         Calls get intersctions and sorts the returned intersctions by their distance
         '''
-        x = line_step.coords.xy[0][0]
-        y = line_step.coords.xy[1][0]
-        intersections = self.get_intersections(line_step)
+        # TODO coords is slow!!!
+        x = step_coords[0][0]
+        y = step_coords[0][1]
+        intersections = self.get_intersections(step_coords)
 
         def compute_s(intersection):
             edge, x_int, y_int = intersection
@@ -200,19 +200,20 @@ class Simulation:
             return (edge, x_int, y_int, S)
 
         intersections_with_S = map(compute_s, intersections)
+        if len(intersections) < 2:
+            return list(intersections_with_S)
+        else:
+            return sorted(intersections_with_S, key=lambda intersections: intersections[3])
 
-        return sorted(intersections_with_S, key=lambda intersections: intersections[3])
-
-    def get_intersections(self, line_step, bias=True):
+    def get_intersections(self, step_coords, bias=True):
         '''
         Given a step, check all the edges in the frame to see if the step crosses
         Return True if it does and a list of crossed edges
         '''
-        # TODO? Can do floating point calc to save time here
-        x = line_step.coords.xy[0][0]
-        x_new = line_step.coords.xy[0][1]
-        y = line_step.coords.xy[1][0]
-        y_new = line_step.coords.xy[1][1]
+        x = step_coords[0][0]
+        y = step_coords[0][1]
+        x_new = step_coords[1][0]
+        y_new = step_coords[1][1]
 
         x_del = x_new - x
         y_del = y_new - y
@@ -220,7 +221,8 @@ class Simulation:
         intersections = []
         for edge in self.frame.edges:
             # If we are heading in the opposite direction of the normal angle
-            if x_del*np.cos(edge.normal_angle) + y_del * np.sin(edge.normal_angle) < 0:
+            if x_del * edge.normal[0] + y_del * edge.normal[1] < 0:
+                line_step = LineString(step_coords)
                 edge_int = edge.linestring.intersects(line_step)
                 if edge_int:
                     x_int, y_int = line_step.intersection(

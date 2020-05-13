@@ -159,6 +159,8 @@ class Edge:
         self.layer = layer
         self.length = np.sqrt((x1-x0)**2 + (y1-y0)**2)
         self.normal_angle = np.arctan2(y1-y0, x1-x0) - np.pi/2
+        self.normal = np.array(
+            [np.cos(self.normal_angle), np.sin(self.normal_angle)])
         self.linestring = LineString([(x0, y0), (x1, y1)])
 
     def __repr__(self):
