@@ -76,6 +76,7 @@ class Simulation:
             edge, x_int, y_int, _ = intersections[0]
 
             if edge.layer == 0:  # Device edge
+                edge.num_collisions += 1
                 r = np.random.rand()
                 if r < self.p_scatter:
                     n_f_new = self.scatter(edge)
@@ -87,7 +88,8 @@ class Simulation:
 
             elif edge.layer == 2:  # Grounded ohmic
                 r = np.random.rand()
-                if r < self.p_ohmic_absorb:
+                if r < self.p_ohmic_absorb:  # absorbed
+                    edge.num_collisions += 1
                     step_params.append((n_f_new, x_int, y_int))
                     active_trajectory = False
                 else:
@@ -103,6 +105,7 @@ class Simulation:
             else:  # Generic ohmic
                 r = np.random.rand()
                 if r < self.p_ohmic_absorb:  # absorb and reemit
+                    edge.num_collisions += 1
                     step_params.append((n_f_new, x_int, y_int))
                     (x_new, y_new), reinjecting_edge = self.frame.get_inject_position(
                         edge.layer)
@@ -123,9 +126,13 @@ class Simulation:
             edge_0, x_new, y_new, _ = intersections[0]
             edge_1, _, _, _ = intersections[1]
 
-            layer = np.max(edge_0.layer, edge_1.layer)
+            edges = [edge_0, edge_1]
+            index = np.argmax([edge_0.layer, edge_1.layer])
+            layer = edges[index].layer
+            edge_for_count = edges[index]  # to avoid double counting
 
             if layer == 0:  # Device edge
+                edge_for_count.num_collisions += 1
                 r = np.random.rand()
                 if r < self.p_scatter:
                     n_f_new = self.corner_scatter(edge_0, edge_1)
@@ -138,6 +145,7 @@ class Simulation:
             elif layer == 2:  # Grounded ohmic
                 r = np.random.rand()
                 if r < self.p_ohmic_absorb:
+                    edge_for_count.num_collisions += 1
                     step_params.append((n_f_new, x_int, y_int))
                     active_trajectory = False
                 else:
@@ -153,6 +161,7 @@ class Simulation:
             else:  # Generic ohmic
                 r = np.random.rand()
                 if r < self.p_ohmic_absorb:  # absorb and reemit
+                    edge_for_count.num_collisions += 1
                     step_params.append((n_f_new, x_int, y_int))
                     (x_new, y_new), reinjecting_edge = self.frame.get_inject_position(layer)
                     n_f_new = reinjecting_edge.get_injection_index()
@@ -219,23 +228,47 @@ class Simulation:
         y_del = y_new - y
 
         intersections = []
+        # if x_new > -0.4999 and x_new < 0.4999 and y_new > -4.9999 and y_new < 4.9999:
+        #    return intersections
+
         for edge in self.frame.edges:
             # If we are heading in the opposite direction of the normal angle
             if x_del * edge.normal[0] + y_del * edge.normal[1] < 0:
-                line_step = LineString(step_coords)
-                edge_int = edge.linestring.intersects(line_step)
-                if edge_int:
-                    x_int, y_int = line_step.intersection(
-                        edge.linestring).coords.xy
+                # Calculate the determinant
+                px0, px1 = edge.xs
+                py0, py1 = edge.ys
 
-                    if x_int[0] != x or y_int[0] != y:
+                x01 = x - x_new
+                y01 = y - y_new
+                x02 = x - px0
+                y02 = y - py0
+                x23 = px0 - px1
+                y23 = py0 - py1
+
+                t = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
+                u = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
+                #line_step = LineString(step_coords)
+                #edge_int = edge.linestring.intersects(line_step)
+                # if edge_int:
+                if 0 <= t and t <= 1 and 0 <= u and u <= 1:
+                    x_int = px0 + u*(px1 - px0)
+                    y_int = py0 + u*(py1 - py0)
+                    # x_int, y_int = line_step.intersection(
+                    #    edge.linestring).coords.xy
+
+                    # if x_int[0] != x or y_int[0] != y:
+                    if x_int != x or y_int != y:
                         if bias:
                             bias_vector = 1E-10 * \
                                 np.array([(x_new-x), (y_new-y)]) / \
                                 np.sqrt((x_new-x)**2 + (y_new-y)**2)
                             intersections.append(
-                                (edge, x_int[0] - bias_vector[0], y_int[0] - bias_vector[1]))
+                                (edge, x_int - bias_vector[0], y_int - bias_vector[1]))
+
+                            # intersections.append(
+                            # (edge, x_int[0] - bias_vector[0], y_int[0] - bias_vector[1]))
                         else:
-                            intersections.append((edge, x_int[0], y_int[0]))
+                            intersections.append((edge, x_int, y_int))
+                            #intersections.append((edge, x_int[0], y_int[0]))
 
         return intersections

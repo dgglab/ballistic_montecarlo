@@ -47,6 +47,7 @@ class Frame:
 
         self._extract_points(layers)
         self._gen_frame()
+        self._gen_matrices_for_det()
 
     def _extract_points(self, layers):
         '''
@@ -95,6 +96,17 @@ class Frame:
         self.edges = []
         for i, (x, y) in enumerate(zip(xs[:-1], ys[:-1])):
             self.edges.append(Edge(x, y, xs[i+1], ys[i+1], layers[i]))
+
+    def _gen_matrices_for_det(self):
+        '''
+        Generates a few matricies that will be used in calculating intersections with edges
+        '''
+        self.px0 = np.array([edge.xs[0] for edge in self.edges])
+        self.px1 = np.array([edge.xs[1] for edge in self.edges])
+        self.py0 = np.array([edge.ys[0] for edge in self.edges])
+        self.py1 = np.array([edge.ys[1] for edge in self.edges])
+        self.x23 = self.px0 - self.px1
+        self.y23 = self.py0 - self.py1
 
     def gen_fig(self):
         '''
@@ -162,6 +174,7 @@ class Edge:
         self.normal = np.array(
             [np.cos(self.normal_angle), np.sin(self.normal_angle)])
         self.linestring = LineString([(x0, y0), (x1, y1)])
+        self.num_collisions = 0
 
     def __repr__(self):
         return '(({0}, {1}), ({2}, {3}), {4})'.format(self.start[0], self.start[1], self.end[0], self.end[1], self.layer)
