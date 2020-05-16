@@ -70,8 +70,9 @@ class Simulation:
         intersections = self.get_sorted_intersections(step_coords)
 
         if len(intersections) == 0:
+            pass
             step_params.append((n_f_new, x_new, y_new))
-        # Single edge intersection
+            # Single edge intersection
         elif len(intersections) == 1 or intersections[0][3] != intersections[1][3]:
             edge, x_int, y_int, _ = intersections[0]
 
@@ -226,37 +227,23 @@ class Simulation:
 
         x_del = x_new - x
         y_del = y_new - y
+        x01 = -x_del
+        y01 = -y_del
+        x02 = x - self.frame.px0
+        y02 = y - self.frame.py0
 
         intersections = []
-        # if x_new > -0.4999 and x_new < 0.4999 and y_new > -4.9999 and y_new < 4.9999:
-        #    return intersections
 
-        for edge in self.frame.edges:
-            # If we are heading in the opposite direction of the normal angle
-            if x_del * edge.normal[0] + y_del * edge.normal[1] < 0:
-                # Calculate the determinant
-                px0, px1 = edge.xs
-                py0, py1 = edge.ys
+        ts = (x02*self.frame.y23 - y02*self.frame.x23) / \
+             (x01*self.frame.y23 - y01*self.frame.x23)
+        us = -(x01*y02 - y01*x02) / (x01*self.frame.y23 - y01*self.frame.x23)
 
-                x01 = x - x_new
-                y01 = y - y_new
-                x02 = x - px0
-                y02 = y - py0
-                x23 = px0 - px1
-                y23 = py0 - py1
-
-                t = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
-                u = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
-                #line_step = LineString(step_coords)
-                #edge_int = edge.linestring.intersects(line_step)
-                # if edge_int:
-                if 0 <= t and t <= 1 and 0 <= u and u <= 1:
-                    x_int = px0 + u*(px1 - px0)
-                    y_int = py0 + u*(py1 - py0)
-                    # x_int, y_int = line_step.intersection(
-                    #    edge.linestring).coords.xy
-
-                    # if x_int[0] != x or y_int[0] != y:
+        for i, (t, u) in enumerate(zip(ts, us)):
+            if 0 <= t and t <= 1 and 0 <= u and u <= 1:
+                edge = self.frame.edges[i]
+                if x_del * edge.normal[0] + y_del * edge.normal[1] < 0:
+                    x_int = edge.xs[0] + u*(edge.xs[1] - edge.xs[0])
+                    y_int = edge.ys[0] + u*(edge.ys[1] - edge.ys[0])
                     if x_int != x or y_int != y:
                         if bias:
                             bias_vector = 1E-10 * \
@@ -265,10 +252,7 @@ class Simulation:
                             intersections.append(
                                 (edge, x_int - bias_vector[0], y_int - bias_vector[1]))
 
-                            # intersections.append(
-                            # (edge, x_int[0] - bias_vector[0], y_int[0] - bias_vector[1]))
                         else:
                             intersections.append((edge, x_int, y_int))
-                            #intersections.append((edge, x_int[0], y_int[0]))
 
         return intersections
