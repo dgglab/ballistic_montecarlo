@@ -51,8 +51,7 @@ class Simulation:
                 n_f = step_params[-1][0]
                 x = step_params[-1][1]
                 y = step_params[-1][2]
-                step_params = self._step_position(
-                    n_f, x, y, debug)
+                step_params = self._step_position(n_f, x, y, debug)
 
                 trajectory.extend(step_params)
                 state = step_params[-1][-1]
