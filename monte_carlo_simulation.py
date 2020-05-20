@@ -2,17 +2,16 @@ import time
 import numpy as np
 from bandstructure.caustic_bandstructure import Bandstructure
 from geo.caustic_frame import Edge
-from shapely.geometry import LineString
 from shapely.geometry import Point
 
 
 class Simulation:
     def __init__(self, frame, k, phi, B, n_inject, p_scatter=1, p_ohmic_absorb=1):
-        self.frame = frame
+        self.frame = frame  # private variable?
         self.bandstructure = Bandstructure(k, phi, B)
         self.B = B
         self.phi = phi
-        self.n_inject = n_inject
+        self.n_inject = n_inject  # move to run simulation
         self.p_scatter = p_scatter
         self.p_ohmic_absorb = p_ohmic_absorb
 
@@ -21,7 +20,6 @@ class Simulation:
         self.calculate_injection_probs()
 
     def set_seed(self, seed):
-        # Will want to use generators when parallelizing
         np.random.seed(int(seed))
         self.rng_seed = seed
 
@@ -70,7 +68,6 @@ class Simulation:
         intersections = self.get_sorted_intersections(step_coords)
 
         if len(intersections) == 0:
-            pass
             step_params.append((n_f_new, x_new, y_new))
             # Single edge intersection
         elif len(intersections) == 1 or intersections[0][3] != intersections[1][3]:
@@ -235,7 +232,7 @@ class Simulation:
         intersections = []
 
         ts = (x02*self.frame.y23 - y02*self.frame.x23) / \
-             (x01*self.frame.y23 - y01*self.frame.x23)
+            (x01*self.frame.y23 - y01*self.frame.x23)
         us = -(x01*y02 - y01*x02) / (x01*self.frame.y23 - y01*self.frame.x23)
 
         for i, (t, u) in enumerate(zip(ts, us)):
