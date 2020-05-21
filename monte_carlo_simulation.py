@@ -4,21 +4,22 @@ import numpy as np
 from shapely.geometry import Point
 from enum import IntEnum
 
-from bandstructure.caustic_bandstructure import Bandstructure
 from geo.caustic_frame import Edge
+from bandstructure.caustic_bandstructure import Bandstructure
 
 
 class TrajectoryState(IntEnum):
-    INJECTING = 0
-    ACTIVE = 1
-    COLLISION = 2
-    SCATTER = 3
-    REFLECT = 4
-    ABSORBED = 5
-    CCOLLISION = 6
-    CSCATTER = 7
-    CREFLECT = 8
-    CABSORBED = 9
+    INJECTING = 1
+    PROPAGATE = 2
+    COLLISION = 3
+    SCATTER = 4
+    REFLECT = 5
+    ABSORBED = 6
+    CCOLLISION = 7
+    CSCATTER = 8
+    CREFLECT = 9
+    CABSORBED = 10
+    ERROR = 11
 
 
 class Simulation:
@@ -36,6 +37,9 @@ class Simulation:
             edge.set_in_prob(in_prob, cum_prob)
 
     def run_simulation(self, n_inject, debug=False):
+        '''
+        Propagates n_inject charge carriers until they are absorbed by a grounded contact
+        '''
         trajectories = []
 
         for _ in range(n_inject):
@@ -65,28 +69,30 @@ class Simulation:
         if debug and not self._frame.body.intersects(Point(x, y)):
             print('Previous step stepped out of bounds')
             print(n_f, x, y)
-            return [(n_f, x, y)], False
+            return [(n_f, x, y, TrajectoryState.ERROR)]
 
         n_f_new, x_new, y_new = self._update_position(n_f, x, y)
 
         step_coords = ([(x, y), (x_new, y_new)])
 
-        # TODO: get_storted_inter should return interpolated n_f of collision point
         intersections = self._get_sorted_intersections(step_coords)
 
         # TODO: This big ole block is convoluted and has lots of repetition.
         #       Consider refactoring, or at least naming things more clearly.
         if len(intersections) == 0:
-            step_params.append((n_f_new, x_new, y_new, TrajectoryState.ACTIVE))
+            step_params.append(
+                (n_f_new, x_new, y_new, TrajectoryState.PROPAGATE))
 
         elif len(intersections) == 1 or intersections[0][3] != intersections[1][3]:
             # Single edge intersection
             edge, x_int, y_int, _ = intersections[0]
+            n_f_int = self._get_n_f_intersection(
+                n_f, [(x, y), (x_int, y_int), (x_new, y_new)])
             if edge.layer == 0:
                 # Device edge
                 edge.num_collisions += 1
                 step_params.append(
-                    (n_f, x_int, y_int, TrajectoryState.COLLISION))
+                    (n_f_int, x_int, y_int, TrajectoryState.COLLISION))
                 if np.random.rand() < self._p_scatter:
                     n_f_new = self._scatter(edge)
                     step_params.append(
@@ -102,10 +108,10 @@ class Simulation:
                     # Absorbed
                     edge.num_collisions += 1
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.ABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED))
                 else:
                     step_params.append(
-                        (n_f, x_int, y_int, TrajectoryState.COLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.COLLISION))
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._scatter(edge)
                         step_params.append(
@@ -121,7 +127,7 @@ class Simulation:
                     # Absorb and reemit
                     edge.num_collisions += 1
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.ABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED))
                     (x_new, y_new), reinjecting_edge = self._frame.get_inject_position(
                         edge.layer)
                     n_f_new = reinjecting_edge.get_injection_index()
@@ -129,7 +135,7 @@ class Simulation:
                         (n_f_new, x_new, y_new, TrajectoryState.INJECTING))
                 else:
                     step_params.append(
-                        (n_f, x_int, y_int, TrajectoryState.COLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.COLLISION))
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._scatter(edge)
                         step_params.append(
@@ -141,8 +147,11 @@ class Simulation:
                             (n_f_new, x_int, y_int, TrajectoryState.REFLECT))
         else:
             # Corner intersection
-            edge_0, x_new, y_new, _ = intersections[0]
+            edge_0, x_int, y_int, _ = intersections[0]
             edge_1, _, _, _ = intersections[1]
+
+            n_f_int = self._get_n_f_intersection(
+                n_f, [(x, y), (x_int, y_int), (x_new, y_new)])
 
             edges = [edge_0, edge_1]
             index = np.argmax([edge_0.layer, edge_1.layer])
@@ -153,7 +162,7 @@ class Simulation:
                 # Device edge
                 edge_for_count.num_collisions += 1
                 step_params.append(
-                    (n_f, x_int, y_int, TrajectoryState.CCOLLISION))
+                    (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION))
                 if np.random.rand() < self._p_scatter:
                     n_f_new = self._corner_scatter(edge_0, edge_1)
                     step_params.append(
@@ -168,10 +177,10 @@ class Simulation:
                 if np.random.rand() < self._p_ohmic_absorb:
                     edge_for_count.num_collisions += 1
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.ABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED))
                 else:
                     step_params.append(
-                        (n_f, x_int, y_int, TrajectoryState.CCOLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION))
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._corner_scatter(edge_0, edge_1)
                         step_params.append(
@@ -187,7 +196,7 @@ class Simulation:
                     # Absorb and reemit
                     edge_for_count.num_collisions += 1
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.CABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.CABSORBED))
                     (x_new, y_new), reinjecting_edge = self._frame.get_inject_position(
                         layer)
                     n_f_new = reinjecting_edge.get_injection_index()
@@ -195,7 +204,7 @@ class Simulation:
                         (n_f_new, x_new, y_new, TrajectoryState.INJECTING))
                 else:
                     step_params.append(
-                        (n_f, x_int, y_int, TrajectoryState.CCOLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION))
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._corner_scatter(edge_0, edge_1)
                         step_params.append(
@@ -225,7 +234,6 @@ class Simulation:
         return Edge.compute_injection_index(cum_prob)
 
     def _get_sorted_intersections(self, step_coords):
-        # TODO coords is slow!!!
         x = step_coords[0][0]
         y = step_coords[0][1]
         intersections = self._get_intersections(step_coords)
@@ -280,3 +288,17 @@ class Simulation:
                         else:
                             intersections.append((edge, x_int, y_int))
         return intersections
+
+    def _get_n_f_intersection(self, n_f, coords):
+        '''
+        Returns the scaling factor required to step from (x, y) to (x_int, y_int) given n_f
+        '''
+        x = coords[0][0]
+        y = coords[0][1]
+        x_int = coords[1][0]
+        y_int = coords[1][1]
+        x_new = coords[2][0]
+        y_new = coords[2][1]
+        f = np.sqrt(((x_int - x)**2 + (y_int-y)**2) /
+                    ((x_new - x)**2 + (y_new - y)**2))
+        return (n_f[0], f)
