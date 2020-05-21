@@ -163,6 +163,11 @@ class Frame:
 
 
 class Edge:
+    '''
+    Edge represents a given edge in a frame. It stores properties of the edge, such
+    as its coordiantes and the probability distribtution for injection from that edge
+    '''
+
     def __init__(self, x0, y0, x1, y1, layer):
         self.start = (x0, y0)
         self.end = (x1, y1)
@@ -174,7 +179,6 @@ class Edge:
         self.normal = np.array(
             [np.cos(self.normal_angle), np.sin(self.normal_angle)])
         self.linestring = LineString([(x0, y0), (x1, y1)])
-        self.num_collisions = 0
 
     def __repr__(self):
         return '(({0}, {1}), ({2}, {3}), {4})'.format(self.start[0], self.start[1], self.end[0], self.end[1], self.layer)

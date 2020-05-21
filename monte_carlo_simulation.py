@@ -41,6 +41,9 @@ class Simulation:
         Propagates n_inject charge carriers until they are absorbed by a grounded contact
         '''
         trajectories = []
+        edge_to_count = {}
+        for edge in self._frame.edges:
+            edge_to_count[edge] = 0
 
         for _ in range(n_inject):
             trajectory = []
@@ -48,7 +51,7 @@ class Simulation:
             (x, y), injecting_edge = self._frame.get_inject_position(1)
             n_f = injecting_edge.get_injection_index()
 
-            step_params = [(n_f, x, y, state)]
+            step_params = [(n_f, x, y, state, injecting_edge)]
             trajectory.append(step_params[0])
 
             while state != TrajectoryState.ABSORBED:
@@ -57,19 +60,23 @@ class Simulation:
                 y = step_params[-1][2]
                 step_params = self._step_position(n_f, x, y, debug)
 
+                state = step_params[-1][-2]
                 trajectory.extend(step_params)
-                state = step_params[-1][-1]
+                for step_param in step_params:
+                    edge = step_param[-1]
+                    if edge in edge_to_count:
+                        edge_to_count[edge] += 1
 
             trajectories.append(trajectory)
 
-        return trajectories
+        return edge_to_count, trajectories
 
     def _step_position(self, n_f, x, y, debug=False):
         step_params = []
         if debug and not self._frame.body.intersects(Point(x, y)):
             print('Previous step stepped out of bounds')
             print(n_f, x, y)
-            return [(n_f, x, y, TrajectoryState.ERROR)]
+            return [(n_f, x, y, TrajectoryState.ERROR, None)]
 
         n_f_new, x_new, y_new = self._update_position(n_f, x, y)
 
@@ -81,70 +88,74 @@ class Simulation:
         #       Consider refactoring, or at least naming things more clearly.
         if len(intersections) == 0:
             step_params.append(
-                (n_f_new, x_new, y_new, TrajectoryState.PROPAGATE))
+                (n_f_new, x_new, y_new, TrajectoryState.PROPAGATE, None))
 
         elif len(intersections) == 1 or intersections[0][3] != intersections[1][3]:
             # Single edge intersection
             edge, x_int, y_int, _ = intersections[0]
             n_f_int = self._get_n_f_intersection(
                 n_f, [(x, y), (x_int, y_int), (x_new, y_new)])
+
             if edge.layer == 0:
                 # Device edge
-                edge.num_collisions += 1
                 step_params.append(
-                    (n_f_int, x_int, y_int, TrajectoryState.COLLISION))
+                    (n_f_int, x_int, y_int, TrajectoryState.COLLISION, edge))
+
                 if np.random.rand() < self._p_scatter:
                     n_f_new = self._scatter(edge)
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.SCATTER))
+                        (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                 else:
                     # Replace with specular reflection
                     n_f_new = self._scatter(edge)
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.REFLECT))
+                        (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
+
             elif edge.layer == 2:
                 # Grounded ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     # Absorbed
-                    edge.num_collisions += 1
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED, edge))
                 else:
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.COLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.COLLISION, None))
+
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._scatter(edge)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.SCATTER))
+                            (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                     else:
                         # Replace with specular reflection
                         n_f_new = self._scatter(edge)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.REFLECT))
+                            (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
             else:
                 # Generic ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     # Absorb and reemit
-                    edge.num_collisions += 1
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED, edge))
+
                     (x_new, y_new), reinjecting_edge = self._frame.get_inject_position(
                         edge.layer)
                     n_f_new = reinjecting_edge.get_injection_index()
+
                     step_params.append(
-                        (n_f_new, x_new, y_new, TrajectoryState.INJECTING))
+                        (n_f_new, x_new, y_new, TrajectoryState.INJECTING, None))
                 else:
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.COLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.COLLISION, None))
+
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._scatter(edge)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.SCATTER))
+                            (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                     else:
                         # Replace with specular reflection
                         n_f_new = self._scatter(edge)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.REFLECT))
+                            (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
         else:
             # Corner intersection
             edge_0, x_int, y_int, _ = intersections[0]
@@ -160,60 +171,65 @@ class Simulation:
 
             if layer == 0:
                 # Device edge
-                edge_for_count.num_collisions += 1
                 step_params.append(
-                    (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION))
+                    (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION, edge_for_count))
+
                 if np.random.rand() < self._p_scatter:
                     n_f_new = self._corner_scatter(edge_0, edge_1)
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.CSCATTER))
+                        (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                 else:
                     # Replace with specular reflection
                     n_f_new = self._corner_scatter(edge_0, edge_1)
                     step_params.append(
-                        (n_f_new, x_int, y_int, TrajectoryState.CREFLECT))
+                        (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
+
             elif layer == 2:
                 # Grounded ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
-                    edge_for_count.num_collisions += 1
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.ABSORBED, edge_for_count))
                 else:
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION, None))
+
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._corner_scatter(edge_0, edge_1)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.CSCATTER))
+                            (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                     else:
                         # Replace with specular reflection
                         n_f_new = self._corner_scatter(edge_0, edge_1)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.CREFLECT))
+                            (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
             else:
                 # Generic ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     # Absorb and reemit
-                    edge_for_count.num_collisions += 1
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.CABSORBED))
+                        (n_f_int, x_int, y_int, TrajectoryState.CABSORBED, edge_for_count))
+
                     (x_new, y_new), reinjecting_edge = self._frame.get_inject_position(
                         layer)
                     n_f_new = reinjecting_edge.get_injection_index()
+
                     step_params.append(
-                        (n_f_new, x_new, y_new, TrajectoryState.INJECTING))
+                        (n_f_new, x_new, y_new, TrajectoryState.INJECTING, None))
+
                 else:
                     step_params.append(
-                        (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION))
+                        (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION, None))
+
                     if np.random.rand() < self._p_scatter:
                         n_f_new = self._corner_scatter(edge_0, edge_1)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.CSCATTER))
+                            (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                     else:
                         # Replace with specular reflection
                         n_f_new = self._corner_scatter(edge_0, edge_1)
                         step_params.append(
-                            (n_f_new, x_int, y_int, TrajectoryState.CREFLECT))
+                            (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
+
         return step_params
 
     def _update_position(self, n_f_in, x_in, y_in):
