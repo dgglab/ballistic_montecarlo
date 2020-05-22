@@ -9,6 +9,9 @@ from bandstructure.caustic_bandstructure import Bandstructure
 
 
 class TrajectoryState(IntEnum):
+    '''
+    Used for specifying the state of a step returned by Simulation._step_positionS
+    '''
     INJECTING = 1
     PROPAGATE = 2
     COLLISION = 3
@@ -24,7 +27,15 @@ class TrajectoryState(IntEnum):
 
 class Simulation:
     def __init__(self, frame, k, phi, field, p_scatter=1.0, p_ohmic_absorb=1.0):
-        # TODO: Comment these parameters.
+        '''
+        inputs:
+            frame: instance of a Frame representing the device to simulate
+            k: list of arrays wave vectors defining Fermi surface [kx, ky]
+            phi: angle of crystal axis relative to the device
+            field: magnetic field to simulate
+            p_scatter: probability of scattering from an edge (instead of reflecting)
+            p_ohmic_absorb: probability of an ohmic absorbing an impinging charge
+        '''
         self._frame = frame
         self._bandstructure = Bandstructure(k, phi, field)
         self._p_scatter = p_scatter
