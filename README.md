@@ -4,14 +4,14 @@
 
 Monte carlo code for propagating electrons within an arbitrary geometry for a given Fermi surface.
 
+See [this notebook](example.ipynb) for a more detailed description and usage instructions.
+
 Linked to our nanohub page: https://nanohub.org/projects/ballisticmontecarlo/
 
-# Usage
-## install dependencies using conda
+# install dependencies using conda
 ```
 conda env create
 conda activate ballistic_montecarlo
 ```
 
-## Example
-See [this notebook](example.ipynb) for example usage
+
