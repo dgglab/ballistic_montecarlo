@@ -48,6 +48,7 @@ class Frame:
         self._extract_points(layers)
         self._gen_frame()
         self._gen_matrices_for_det()
+        self._calc_ohmic_length()
 
     def _extract_points(self, layers):
         '''
@@ -160,6 +161,17 @@ class Frame:
             y_inject += bias_vector[1]
 
         return (x_inject, y_inject), injecting_edge
+
+    def _calc_ohmic_length(self):
+        '''
+        Calculates the lengths of each individual layer
+        '''
+        self.ohmic_lengths = {}
+        for edge in self.edges:
+            if edge.layer in self.ohmic_lengths:
+                self.ohmic_lengths[edge.layer] += edge.length
+            else:
+                self.ohmic_lengths[edge.layer] = edge.length
 
 
 class Edge:

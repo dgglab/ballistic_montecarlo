@@ -8,6 +8,20 @@ from geo.caustic_frame import Edge
 from bandstructure.caustic_bandstructure import Bandstructure
 
 
+def calc_ohmstats(fields, results):
+    ohmstats = {}
+    zeros = np.zeros(np.shape(fields))
+    for i, (r, field) in enumerate(zip(results, fields)):
+        for edge in r.get()[0].keys():
+            count = r.get()[0][edge]
+            if edge.layer in ohmstats:
+                ohmstats[edge.layer][i] += count
+            else:
+                ohmstats[edge.layer] = zeros.copy()
+                ohmstats[edge.layer][i] += count
+    return ohmstats
+
+
 class TrajectoryState(IntEnum):
     '''
     Used for specifying the state of a step returned by Simulation._step_positionS
