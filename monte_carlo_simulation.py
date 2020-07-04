@@ -1,4 +1,6 @@
 import time
+import pickle
+import os.path
 
 import numpy as np
 from shapely.geometry import Point
@@ -39,6 +41,9 @@ class TrajectoryState(IntEnum):
     ERROR = 11
 
 
+ALL_STATES = set(range(11))
+
+
 class Simulation:
     def __init__(self, frame, k, phi, field, p_scatter=1.0, p_ohmic_absorb=1.0):
         '''
@@ -61,10 +66,27 @@ class Simulation:
                 edge.normal_angle)
             edge.set_in_prob(in_prob, cum_prob)
 
-    def run_simulation(self, n_inject, debug=False):
+    def run_simulation_with_cache(self, identifier, n_inject, **kwargs):
+
+        path = 'data/'+identifier+'.pkl'
+        if os.path.isfile(path):
+            print('path {} already exists, loading data'.format(path))
+            edge_to_count, trajectories = pickle.load(open(path, 'rb'))
+            return edge_to_count, trajectories
+
+        print('path {} does not exist, running simulation'.format(path))
+        edge_to_count, trajectories = self.run_simulation(n_inject, **kwargs)
+        pickle.dump((edge_to_count, trajectories), open(path, 'wb'))
+
+        return edge_to_count, trajectories
+
+    def run_simulation(self, n_inject, **kwargs):
         '''
         Propagates n_inject charge carriers until they are absorbed by a grounded contact
         '''
+        debug = kwargs['debug'] if 'debug' in kwargs else False
+        stored_states = kwargs['stored_states'] if 'stored_states' in kwargs else ALL_STATES
+
         trajectories = []
         edge_to_count = {}
         for edge in self._frame.edges:
@@ -77,7 +99,10 @@ class Simulation:
             n_f = injecting_edge.get_injection_index()
 
             step_params = [(n_f, x, y, state, injecting_edge)]
-            trajectory.append(step_params[0])
+
+            # Optimize to either or not based on full or empty filter
+            trajectory.extend(
+                filter(lambda step: step[-2] in stored_states, step_params))
 
             while state != TrajectoryState.ABSORBED:
                 n_f = step_params[-1][0]
@@ -86,7 +111,10 @@ class Simulation:
                 step_params = self._step_position(n_f, x, y, debug)
 
                 state = step_params[-1][-2]
-                trajectory.extend(step_params)
+
+                trajectory.extend(
+                    filter(lambda step: step[-2] in stored_states, step_params))
+
                 for step_param in step_params:
                     edge = step_param[-1]
                     if edge in edge_to_count:
@@ -310,7 +338,7 @@ class Simulation:
         intersections = []
 
         ts = (x02*self._frame.y23 - y02*self._frame.x23) / \
-             (x01*self._frame.y23 - y01*self._frame.x23)
+            (x01*self._frame.y23 - y01*self._frame.x23)
         us = -(x01*y02 - y01*x02) / (x01*self._frame.y23 - y01*self._frame.x23)
 
         for i, (t, u) in enumerate(zip(ts, us)):
