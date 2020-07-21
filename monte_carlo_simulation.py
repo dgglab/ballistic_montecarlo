@@ -6,14 +6,14 @@ import numpy as np
 from shapely.geometry import Point
 from enum import IntEnum
 
-from geo.caustic_frame import Edge
-from bandstructure.caustic_bandstructure import Bandstructure
+from ballistic_montecarlo.geo.caustic_frame import Edge
+from ballistic_montecarlo.bandstructure.caustic_bandstructure import Bandstructure
 
 
 def calc_ohmstats(fields, results):
     ohmstats = {}
     zeros = np.zeros(np.shape(fields))
-    for i, (r, field) in enumerate(zip(results, fields)):
+    for i, (r, _) in enumerate(zip(results, fields)):
         for edge in r.get()[0].keys():
             count = r.get()[0][edge]
             if edge.layer in ohmstats:
@@ -66,26 +66,26 @@ class Simulation:
                 edge.normal_angle)
             edge.set_in_prob(in_prob, cum_prob)
 
-    def run_simulation_with_cache(self, identifier, n_inject, **kwargs):
-
-        path = 'data/'+identifier+'.pkl'
+    def run_simulation_with_cache(self, identifier, n_inject, path='data/', stored_states=ALL_STATES, debug=False):
+        full_path = path+identifier+'.pkl'
         if os.path.isfile(path):
-            print('path {} already exists, loading data'.format(path))
-            edge_to_count, trajectories = pickle.load(open(path, 'rb'))
+            print('path {} already exists, loading data'.format(full_path))
+            with open(full_path, 'rb') as f:
+                edge_to_count, trajectories = pickle.load(f)
             return edge_to_count, trajectories
 
-        print('path {} does not exist, running simulation'.format(path))
-        edge_to_count, trajectories = self.run_simulation(n_inject, **kwargs)
-        pickle.dump((edge_to_count, trajectories), open(path, 'wb'))
+        print('path {} does not exist, running simulation'.format(full_path))
+        edge_to_count, trajectories = self.run_simulation(
+            n_inject, stored_states=stored_states, debug=False)
+        with open(full_path, 'wb') as f:
+            pickle.dump((edge_to_count, trajectories), f)
 
         return edge_to_count, trajectories
 
-    def run_simulation(self, n_inject, **kwargs):
+    def run_simulation(self, n_inject, stored_states=ALL_STATES, debug=False):
         '''
         Propagates n_inject charge carriers until they are absorbed by a grounded contact
         '''
-        debug = kwargs['debug'] if 'debug' in kwargs else False
-        stored_states = kwargs['stored_states'] if 'stored_states' in kwargs else ALL_STATES
 
         trajectories = []
         edge_to_count = {}
