@@ -11,12 +11,12 @@ class Frame:
     '''
     Frame to used in ballistic monte carlo
     Required layers:
-        0: Body of device, must be a single polygon
-        1: Injecting contact(s)
-        2: Grounded contacts(s)
+        1: Body of device, must be a single polygon
+        2: Injecting contact(s)
+        3: Grounded contacts(s)
 
     Optional layers:
-        3-n: floating contacts, grouped by layer
+        4-n: floating contacts, grouped by layer
 
     Attributes
     ps: dictionary containing the verticies of all polygons in the device separated by layer
@@ -32,18 +32,18 @@ class Frame:
         doc = ezdxf.readfile(dxf_path)
         layers = groupby(entities=doc.modelspace(), dxfattrib='layer')
 
-        if len(layers['0']) != 1:
-            if len(layers['0']) == 0:
+        if len(layers['1']) != 1:
+            if len(layers['1']) == 0:
                 raise ValueError(
-                    'Body (layer 0) does not exist, assign to layer 0')
+                    'Body (layer 1) does not exist, assign to layer 0')
             else:
-                raise ValueError('Body (layer 0) is disjoint')
-
-        if len(layers['1']) == 0:
-            raise ValueError('No injector (layer 1)')
+                raise ValueError('Body (layer 1) is disjoint')
 
         if len(layers['2']) == 0:
-            raise ValueError('No ground (layer 2)')
+            raise ValueError('No injector (layer 2)')
+
+        if len(layers['3']) == 0:
+            raise ValueError('No ground (layer 3)')
 
         self._extract_points(layers)
         self._gen_frame()
@@ -73,7 +73,7 @@ class Frame:
         generate the frame by intersecting the contacts with the body
         '''
         for layer in self.ps.keys():
-            if layer == '0':
+            if layer == '1':
                 self.body = Polygon(self.ps[layer][0])
             else:
                 for poly in self.ps[layer]:
@@ -83,10 +83,10 @@ class Frame:
 
         self.body = orient(self.body, -1)  # order clockwise
         xs, ys = self.body.exterior.coords.xy
-        layers = [0] * (len(xs) - 1)
+        layers = [1] * (len(xs) - 1)
 
         for layer in self.ps.keys():
-            if layer == '0':
+            if layer == '1':
                 continue
             for poly in self.ps[layer]:
                 ohm = Polygon(poly)
@@ -94,6 +94,7 @@ class Frame:
                     if ohm.contains(LineString([(x, y), (xs[i+1], ys[i+1])])):
                         layers[i] = int(layer)
 
+        print(layers)
         self.edges = []
         for i, (x, y) in enumerate(zip(xs[:-1], ys[:-1])):
             self.edges.append(Edge(x, y, xs[i+1], ys[i+1], layers[i]))
@@ -116,10 +117,11 @@ class Frame:
         fig = plt.figure()
         for edge in self.edges:
             x, y = [edge.xs, edge.ys]
-            if edge.layer == 0:
+            if edge.layer == 1:
                 plt.plot(x, y, color='k')
             else:
-                plt.plot(x, y, color='C'+str(edge.layer-1))
+                print(edge.layer)
+                plt.plot(x, y, color='C'+str(edge.layer-2))
 
         return fig
 

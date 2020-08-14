@@ -6,8 +6,8 @@ import numpy as np
 from shapely.geometry import Point
 from enum import IntEnum
 
-from ballistic_montecarlo.geo.caustic_frame import Edge
-from ballistic_montecarlo.bandstructure.caustic_bandstructure import Bandstructure
+from geo.caustic_frame import Edge
+from bandstructure.caustic_bandstructure import Bandstructure
 
 
 def calc_ohmstats(fields, results):
@@ -149,7 +149,7 @@ class Simulation:
             n_f_int = self._get_n_f_intersection(
                 n_f, [(x, y), (x_int, y_int), (x_new, y_new)])
 
-            if edge.layer == 0:
+            if edge.layer == 1:
                 # Device edge
                 step_params.append(
                     (n_f_int, x_int, y_int, TrajectoryState.COLLISION, edge))
@@ -164,7 +164,7 @@ class Simulation:
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
 
-            elif edge.layer == 2:
+            elif edge.layer == 3:
                 # Grounded ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     # Absorbed
@@ -222,7 +222,7 @@ class Simulation:
             layer = edges[index].layer
             edge_for_count = edges[index]  # to avoid double counting
 
-            if layer == 0:
+            if layer == 1:
                 # Device edge
                 step_params.append(
                     (n_f_int, x_int, y_int, TrajectoryState.CCOLLISION, edge_for_count))
@@ -237,7 +237,7 @@ class Simulation:
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
 
-            elif layer == 2:
+            elif layer == 3:
                 # Grounded ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     step_params.append(

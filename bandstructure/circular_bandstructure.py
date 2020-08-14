@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def circular(n=1000, k0=1):
+def circular(n=1000, k0=0.95):
     '''
     Returns a discretized circular Fermi surface
     The Fermi velocity is assumed constant so the Fermi

@@ -489,7 +489,7 @@ $SKPOLY
   9
 $TDCREATE
  40
-2458969.6544212964
+2459076.533877315
   9
 $TDUCREATE
  40
@@ -497,7 +497,7 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2458969.6544212964
+2459076.533877315
   9
 $TDUUPDATE
  40
@@ -549,7 +549,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-8C
+8D
   9
 $SURFTAB1
  70
@@ -929,11 +929,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-B0DC5408-8A6A-11EA-80A7-666E696AF849
+2B037E62-DE67-11EA-8A5C-107B4493FF9C
   9
 $VERSIONGUID
   2
-B0DCC8EC-8A6A-11EA-8597-666E696AF849
+2B0403A0-DE67-11EA-8A5C-107B4493FF9C
   9
 $EXTNAMES
 290
@@ -2233,7 +2233,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-4
+5
   0
 LAYER
   5
@@ -2287,7 +2287,7 @@ Continuous
   0
 LAYER
   5
-88
+87
 330
 1
 100
@@ -2311,7 +2311,7 @@ Continuous
   0
 LAYER
   5
-8A
+89
 330
 1
 100
@@ -2324,6 +2324,30 @@ AcDbLayerTableRecord
 0
  62
 2
+  6
+Continuous
+370
+-3
+390
+13
+347
+21
+  0
+LAYER
+  5
+8B
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+3
+ 70
+0
+ 62
+3
   6
 Continuous
 370
@@ -4921,7 +4945,7 @@ AcDbPolyline
  10
 0.5000000000000001
  20
-0.5000000000000001
+0.5
   0
 ENDBLK
   5
@@ -5091,43 +5115,7 @@ ENTITIES
   0
 LWPOLYLINE
   5
-87
-330
-17
-100
-AcDbEntity
-  8
-0
-100
-AcDbPolyline
- 90
-5
- 70
-0
- 10
--0.5
- 20
-5.0
- 10
-0.5
- 20
-5.0
- 10
-0.5
- 20
--5.0
- 10
--0.5
- 20
--5.0
- 10
--0.5
- 20
-5.0
-  0
-LWPOLYLINE
-  5
-89
+88
 330
 17
 100
@@ -5141,6 +5129,42 @@ AcDbPolyline
  70
 0
  10
+-0.5
+ 20
+5.0
+ 10
+0.5
+ 20
+5.0
+ 10
+0.5
+ 20
+-5.0
+ 10
+-0.5
+ 20
+-5.0
+ 10
+-0.5
+ 20
+5.0
+  0
+LWPOLYLINE
+  5
+8A
+330
+17
+100
+AcDbEntity
+  8
+2
+100
+AcDbPolyline
+ 90
+5
+ 70
+0
+ 10
 -0.6
  20
 -4.9
@@ -5163,13 +5187,13 @@ AcDbPolyline
   0
 LWPOLYLINE
   5
-8B
+8C
 330
 17
 100
 AcDbEntity
   8
-2
+3
 100
 AcDbPolyline
  90
