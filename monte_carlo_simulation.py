@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import Point
 from enum import IntEnum
 
-from geo.caustic_frame import Edge
+from geo.caustic_frame import Edge, OhmicLines
 from bandstructure.caustic_bandstructure import Bandstructure
 
 
@@ -45,7 +45,7 @@ ALL_STATES = set(range(11))
 
 
 class Simulation:
-    def __init__(self, frame, k, phi, field, p_scatter=1.0, p_ohmic_absorb=1.0):
+    def __init__(self, frame, k, phi, field, p_scatter=1.0, p_ohmic_absorb=1.0, ohmic_lines=OhmicLines([])):
         '''
         inputs:
             frame: instance of a Frame representing the device to simulate
@@ -56,15 +56,23 @@ class Simulation:
             p_ohmic_absorb: probability of an ohmic absorbing an impinging charge
         '''
         self._frame = frame
+        self._ohmic_lines = ohmic_lines
         self._bandstructure = Bandstructure(k, phi, field)
         self._p_scatter = p_scatter
         self._p_ohmic_absorb = p_ohmic_absorb
 
         # Calculate injection probabilities for each edge.
+        max_layer = 0
         for edge in self._frame.edges:
             in_prob, cum_prob = self._bandstructure.calculate_injection_prob(
                 edge.normal_angle)
             edge.set_in_prob(in_prob, cum_prob)
+            if edge.layer > max_layer:
+                max_layer = edge.layer
+
+        for line in self._ohmic_lines.lines_as_edges:
+            if line.layer <= max_layer:
+                line.layer += max_layer + 1
 
     def run_simulation_with_cache(self, identifier, n_inject, path='data/', stored_states=ALL_STATES, debug=False):
         full_path = path+identifier+'.pkl'
@@ -92,6 +100,9 @@ class Simulation:
         for edge in self._frame.edges:
             edge_to_count[edge] = 0
 
+        for line in self._ohmic_lines.lines_as_edges:
+            edge_to_count[line] = 0
+
         for _ in range(n_inject):
             trajectory = []
             state = TrajectoryState.INJECTING
@@ -108,7 +119,8 @@ class Simulation:
                 n_f = step_params[-1][0]
                 x = step_params[-1][1]
                 y = step_params[-1][2]
-                step_params = self._step_position(n_f, x, y, debug)
+                step_params, line_crosses = self._step_position(
+                    n_f, x, y, debug)
 
                 state = step_params[-1][-2]
 
@@ -119,6 +131,9 @@ class Simulation:
                     edge = step_param[-1]
                     if edge in edge_to_count:
                         edge_to_count[edge] += 1
+
+                for line in line_crosses:
+                    edge_to_count[line] += 1
 
             trajectories.append(trajectory)
 
@@ -136,6 +151,7 @@ class Simulation:
         step_coords = ([(x, y), (x_new, y_new)])
 
         intersections = self._get_sorted_intersections(step_coords)
+        line_crosses = self._get_crosses(step_coords)
 
         # TODO: This big ole block is convoluted and has lots of repetition.
         #       Consider refactoring, or at least naming things more clearly.
@@ -149,7 +165,7 @@ class Simulation:
             n_f_int = self._get_n_f_intersection(
                 n_f, [(x, y), (x_int, y_int), (x_new, y_new)])
 
-            if edge.layer == 1:
+            if edge.layer == 0:
                 # Device edge
                 step_params.append(
                     (n_f_int, x_int, y_int, TrajectoryState.COLLISION, edge))
@@ -164,7 +180,7 @@ class Simulation:
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
 
-            elif edge.layer == 3:
+            elif edge.layer == 2:
                 # Grounded ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     # Absorbed
@@ -237,7 +253,7 @@ class Simulation:
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
 
-            elif layer == 3:
+            elif layer == 2:
                 # Grounded ohmic
                 if np.random.rand() < self._p_ohmic_absorb:
                     step_params.append(
@@ -283,7 +299,7 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
 
-        return step_params
+        return step_params, line_crosses
 
     def _update_position(self, n_f_in, x_in, y_in):
         [x_out, y_out] = [x_in, y_in] + n_f_in[1] * \
@@ -336,10 +352,8 @@ class Simulation:
         y02 = y - self._frame.py0
 
         intersections = []
-
-        ts = (x02*self._frame.y23 - y02*self._frame.x23) / \
-            (x01*self._frame.y23 - y01*self._frame.x23)
-        us = -(x01*y02 - y01*x02) / (x01*self._frame.y23 - y01*self._frame.x23)
+        ts, us = self.get_ts_us(x01, x02, self._frame.x23,
+                                y01, y02, self._frame.y23)
 
         for i, (t, u) in enumerate(zip(ts, us)):
             if 0 <= t and t <= 1 and 0 <= u and u <= 1:
@@ -358,6 +372,11 @@ class Simulation:
                             intersections.append((edge, x_int, y_int))
         return intersections
 
+    def get_ts_us(self, x01, x02, x23, y01, y02, y23):
+        ts = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
+        us = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
+        return ts, us
+
     def _get_n_f_intersection(self, n_f, coords):
         '''
         Returns the scaling factor required to step from (x, y) to (x_int, y_int) given n_f
@@ -371,3 +390,25 @@ class Simulation:
         f = np.sqrt(((x_int - x)**2 + (y_int-y)**2) /
                     ((x_new - x)**2 + (y_new - y)**2))
         return (n_f[0], f)
+
+    def _get_crosses(self, step_coords):
+        x = step_coords[0][0]
+        y = step_coords[0][1]
+        x_new = step_coords[1][0]
+        y_new = step_coords[1][1]
+
+        x_del = x_new - x
+        y_del = y_new - y
+        x01 = -x_del
+        y01 = -y_del
+        x02 = x - self._ohmic_lines.px0
+        y02 = y - self._ohmic_lines.py0
+
+        crosses = []
+        ts, us = self.get_ts_us(x01, x02, self._ohmic_lines.x23,
+                                y01, y02, self._ohmic_lines.y23)
+        for i, (t, u) in enumerate(zip(ts, us)):
+            if 0 <= t and t <= 1 and 0 <= u and u <= 1:
+                line = self._ohmic_lines.lines_as_edges[i]
+                crosses.append(line)
+        return crosses

@@ -489,7 +489,7 @@ $SKPOLY
   9
 $TDCREATE
  40
-2459076.533877315
+2459076.73400463
   9
 $TDUCREATE
  40
@@ -497,7 +497,7 @@ $TDUCREATE
   9
 $TDUPDATE
  40
-2459076.533877315
+2459076.73400463
   9
 $TDUUPDATE
  40
@@ -549,7 +549,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-8D
+8C
   9
 $SURFTAB1
  70
@@ -929,11 +929,11 @@ $PSTYLEMODE
   9
 $FINGERPRINTGUID
   2
-2B037E62-DE67-11EA-8A5C-107B4493FF9C
+6D96A4C0-DE8F-11EA-AA34-107B4493FF9C
   9
 $VERSIONGUID
   2
-2B0403A0-DE67-11EA-8A5C-107B4493FF9C
+6D977D8C-DE8F-11EA-AA34-107B4493FF9C
   9
 $EXTNAMES
 290
@@ -1323,9 +1323,9 @@ ISM
   0
 CLASS
   1
-ACDBPLACEHOLDER
+LAYOUT
   2
-AcDbPlaceHolder
+AcDbLayout
   3
 ObjectDBX Classes
  90
@@ -1339,9 +1339,9 @@ ObjectDBX Classes
   0
 CLASS
   1
-LAYOUT
+ACDBPLACEHOLDER
   2
-AcDbLayout
+AcDbPlaceHolder
   3
 ObjectDBX Classes
  90
@@ -2233,7 +2233,7 @@ LAYER
 100
 AcDbSymbolTable
  70
-5
+4
   0
 LAYER
   5
@@ -2287,7 +2287,7 @@ Continuous
   0
 LAYER
   5
-87
+88
 330
 1
 100
@@ -2311,7 +2311,7 @@ Continuous
   0
 LAYER
   5
-89
+8A
 330
 1
 100
@@ -2324,30 +2324,6 @@ AcDbLayerTableRecord
 0
  62
 2
-  6
-Continuous
-370
--3
-390
-13
-347
-21
-  0
-LAYER
-  5
-8B
-330
-1
-100
-AcDbSymbolTableRecord
-100
-AcDbLayerTableRecord
-  2
-3
- 70
-0
- 62
-3
   6
 Continuous
 370
@@ -5115,7 +5091,43 @@ ENTITIES
   0
 LWPOLYLINE
   5
-88
+87
+330
+17
+100
+AcDbEntity
+  8
+0
+100
+AcDbPolyline
+ 90
+5
+ 70
+0
+ 10
+-0.5
+ 20
+5.0
+ 10
+0.5
+ 20
+5.0
+ 10
+0.5
+ 20
+-5.0
+ 10
+-0.5
+ 20
+-5.0
+ 10
+-0.5
+ 20
+5.0
+  0
+LWPOLYLINE
+  5
+89
 330
 17
 100
@@ -5129,71 +5141,35 @@ AcDbPolyline
  70
 0
  10
--0.5
+-0.6
  20
-5.0
+-4.9
  10
-0.5
+0.6
  20
-5.0
+-4.9
  10
-0.5
+0.6
  20
--5.0
+-5.1
  10
--0.5
+-0.6
  20
--5.0
+-5.1
  10
--0.5
+-0.6
  20
-5.0
+-4.9
   0
 LWPOLYLINE
   5
-8A
+8B
 330
 17
 100
 AcDbEntity
   8
 2
-100
-AcDbPolyline
- 90
-5
- 70
-0
- 10
--0.6
- 20
--4.9
- 10
-0.6
- 20
--4.9
- 10
-0.6
- 20
--5.1
- 10
--0.6
- 20
--5.1
- 10
--0.6
- 20
--4.9
-  0
-LWPOLYLINE
-  5
-8C
-330
-17
-100
-AcDbEntity
-  8
-3
 100
 AcDbPolyline
  90
