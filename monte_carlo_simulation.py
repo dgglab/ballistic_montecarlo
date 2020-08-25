@@ -5,9 +5,10 @@ import os.path
 import numpy as np
 from shapely.geometry import Point
 from enum import IntEnum
+from copy import deepcopy
 
-from geo.caustic_frame import Edge, OhmicLines
-from bandstructure.caustic_bandstructure import Bandstructure
+from ballistic_montecarlo.geo.caustic_frame import Edge, OhmicLines
+from ballistic_montecarlo.bandstructure.caustic_bandstructure import Bandstructure
 
 
 def calc_ohmstats(fields, results):
@@ -55,8 +56,8 @@ class Simulation:
             p_scatter: probability of scattering from an edge (instead of reflecting)
             p_ohmic_absorb: probability of an ohmic absorbing an impinging charge
         '''
-        self._frame = frame
-        self._ohmic_lines = ohmic_lines
+        self._frame = deepcopy(frame)
+        self._ohmic_lines = deepcopy(ohmic_lines)
         self._bandstructure = Bandstructure(k, phi, field)
         self._p_scatter = p_scatter
         self._p_ohmic_absorb = p_ohmic_absorb
@@ -71,8 +72,7 @@ class Simulation:
                 max_layer = edge.layer
 
         for line in self._ohmic_lines.lines_as_edges:
-            if line.layer <= max_layer:
-                line.layer += max_layer + 1
+            line.layer += max_layer + 1
 
     def run_simulation_with_cache(self, identifier, n_inject, path='data/', stored_states=ALL_STATES, debug=False):
         full_path = path+identifier+'.pkl'
