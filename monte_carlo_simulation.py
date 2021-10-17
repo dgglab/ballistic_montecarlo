@@ -373,8 +373,9 @@ class Simulation:
         return intersections
 
     def get_ts_us(self, x01, x02, x23, y01, y02, y23):
-        ts = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
-        us = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
+        with np.errstate(divide='ignore'):
+            ts = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
+            us = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
         return ts, us
 
     def _get_n_f_intersection(self, n_f, coords):
