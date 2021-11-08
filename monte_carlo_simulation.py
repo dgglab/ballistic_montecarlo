@@ -176,7 +176,8 @@ class Simulation:
                         (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                 else:
                     # Replace with specular reflection
-                    n_f_new = self._scatter(edge)
+                    n_f_new = self._specular(n_f_int, edge)
+
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
 
@@ -306,6 +307,62 @@ class Simulation:
             self._bandstructure.dr[:, n_f_in[0]]
         n_f_out = ((n_f_in[0] + 1) % (np.shape(self._bandstructure.dr)[1]), 1)
         return n_f_out, x_out, y_out
+
+    def _specular(self, n_f, edge):
+        xd = edge.xs[0] - edge.xs[1] 
+        yd = edge.ys[0] - edge.ys[1] 
+        #get the slope of the edge
+        line_slope = float('inf') 
+        if xd != 0:
+            line_slope = yd/xd
+        line_x1 = self._bandstructure.r[0][n_f[0]]
+        line_y1 = self._bandstructure.r[1][n_f[0]]
+        matching_segments = list()
+        # go through all the segments and try to find the intersecting point
+        #   if an intersection exists, add it to matching_segments
+        for real_segment in range(0, len(self._bandstructure.r[0])):
+            next_real_segment = (real_segment + 1) % len(self._bandstructure.r[0])
+            segment_x3 = self._bandstructure.r[0][real_segment]
+            segment_y3 = self._bandstructure.r[1][real_segment]
+            segment_x4 = self._bandstructure.r[0][next_real_segment]
+            segment_y4 = self._bandstructure.r[1][next_real_segment]
+            if line_slope == float('inf'):
+                if (line_x1 >= segment_x3 and line_x1 < segment_x4) or (line_x1 > segment_x4 and line_x1 <= segment_x3):
+                    matching_segments.append(real_segment)
+            else:
+                line_x2 = 100.0 #random number to get another point
+                line_y2 = ((line_x2 - line_x1) * line_slope) / line_y1
+                denominator = (line_x1 - line_x2)*(segment_y3 - segment_y4) - (line_y1 - line_y2)*(segment_x3 - segment_x4)
+                if denominator !=0:
+                    intersection_x = ((line_x1*line_y2 - line_y1*line_x2) * (segment_x3 - segment_x4) - (line_x1 - line_x2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
+                    intersection_y = ((line_x1*line_y2 - line_y1*line_x2) * (segment_y3 - segment_y4) - (line_y1 - line_y2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
+                    if (intersection_x <= segment_x3 and intersection_x >= segment_x4) or (intersection_x <= segment_x4 and intersection_x >= segment_x3):
+                        matching_segments.append(real_segment)
+        #we find the one that matches the current position and then we discard every other one as
+        # those would get out of the figure
+        new_matching_segments = list()
+        for existing_finder in range(len(matching_segments)):
+            if matching_segments[existing_finder] == n_f[0]:
+                goes_out_of_the_figure = True
+                for odd_detector in range(len(matching_segments)):
+                    if not goes_out_of_the_figure:
+                        new_matching_segments.append(matching_segments[(odd_detector+existing_finder)%len(matching_segments)])
+                    goes_out_of_the_figure = not goes_out_of_the_figure 
+        #pythagoras on each segment to check which one is the closest
+        min_point = -1
+        min_distance = float('inf')
+        for testing_point in new_matching_segments:
+            segment_x3 = self._bandstructure.r[0][testing_point]
+            segment_y3 = self._bandstructure.r[1][testing_point]
+            this_distance = np.sqrt(np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
+            if min_distance > this_distance:
+                min_distance = this_distance
+                min_distance = testing_point
+        if min_distance == -1:
+            die('Can\'t find an intersection for specular reflection')
+            return
+        else:
+            return (min_point, 1)
 
     # Is this method really necessary?
     def _scatter(self, edge):
