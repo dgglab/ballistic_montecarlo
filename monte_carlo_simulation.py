@@ -175,7 +175,6 @@ class Simulation:
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                 else:
-                    # Replace with specular reflection
                     n_f_new = self._specular(n_f_int, edge)
 
                     step_params.append(
@@ -197,7 +196,7 @@ class Simulation:
                             (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                     else:
                         # Replace with specular reflection
-                        n_f_new = self._scatter(edge)
+                        n_f_new = self._specular(n_f_int, edge)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
             else:
@@ -223,7 +222,7 @@ class Simulation:
                             (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                     else:
                         # Replace with specular reflection
-                        n_f_new = self._scatter(edge)
+                        n_f_new = self._specular(n_f_int, edge)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
         else:
@@ -249,8 +248,7 @@ class Simulation:
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                 else:
-                    # Replace with specular reflection
-                    n_f_new = self._corner_scatter(edge_0, edge_1)
+                    n_f_new = self._corner_specular(n_f, edge_0, edge_1, layer)
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
 
@@ -268,8 +266,7 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                     else:
-                        # Replace with specular reflection
-                        n_f_new = self._corner_scatter(edge_0, edge_1)
+                        n_f_new = self._corner_specular(n_f, edge_0, edge_1, layer)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
             else:
@@ -295,8 +292,7 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                     else:
-                        # Replace with specular reflection
-                        n_f_new = self._corner_scatter(edge_0, edge_1)
+                        n_f_new = self._corner_specular(n_f, edge_0, edge_1, layer)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
 
@@ -367,6 +363,82 @@ class Simulation:
     # Is this method really necessary?
     def _scatter(self, edge):
         return edge.get_injection_index()
+
+    def _corner_specular(self, n_f, edge_0, edge_1, layer):
+        #first we get the intersection of the 2 edge lines
+        # with that point as a center, we trace a circle that cuts the 2 edge lines in 2 points each (new_x, new_y)
+        # for each one of the 2 pairs, we check the distance to the particle point to determine the quadrant
+        # once we have the 2 new points that in the triangle with the intersection contains the particule
+        # we find a 3rd point where the median of the triangle passes by dividing the new_xy segment in half
+        # that median point with the intersection, defines the median of the triangle, we get the slope
+        # we calculate a perpendicular slope to it and together with the intersection, that is our new
+        # virtual edge, from there, we get any other point to pass it to the standard specular function
+        x1 = edge_0.xs[0]
+        y1 = edge_0.ys[0]
+        x2 = edge_0.xs[1]
+        y2 = edge_0.ys[1]
+        x3 = edge_1.xs[0]
+        y3 = edge_1.ys[0]
+        x4 = edge_1.xs[1]
+        y4 = edge_1.ys[1]
+        #get the intersection point of the 2 edges
+        denominator = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
+        if denominator !=0:
+            intersection_x = ((x1*y2 - y1*x2) * (x3 - x4) - (x1 - x2) * (x3*y4 - y3*x4)) / denominator
+            intersection_y = ((x1*y2 - y1*x2) * (y3 - y4) - (y1 - y2) * (x3*y4 - y3*x4)) / denominator
+        #distance bw one edge point and the intersection
+        distance_a = np.sqrt(np.power(x1 - intersection_x, 2) + np.power(y1 - intersection, 2)) 
+        #the proportion that needs to be applied to get to a random distance of 1000
+        proportion_a = 1000 / distance_a
+        proportion_b = 1000 / distance_b
+        #the shift to achieve the new distance from the intersection
+        new_x_shift_a = (int_x - x1) * proportion_a
+        new_y_shift_a = (int_y - y1) * proportion_a
+        new_x_shift_b = (int_x - x3) * proportion_b
+        new_y_shift_b = (int_y - y3) * proportion_b
+        # 4 points, equidistant to (int_x int_y)
+        new_x1 = int_x + new_x_shift_a
+        new_y1 = int_y + new_y_shift_a
+        new_x2 = int_x - new_x_shift_a
+        new_y2 = int_y - new_y_shift_a
+        new_x3 = int_x + new_x_shift_b
+        new_y3 = int_y + new_y_shift_b
+        new_x4 = int_x - new_x_shift_b
+        new_y4 = int_y - new_y_shift_b
+        #the particle point
+        current_x = self._bandstructure.r[0][n_f[0]]
+        current_y = self._bandstructure.r[1][n_f[0]]
+        #from each edge line decide which one of the 2 points is the nearest to the particle
+        # this will give us the quadrant / triangle we are in
+        distance_to_new_1 = np.sqrt(np.power(current_x - new_x1, 2) + np.power(current_y - new_y1, 2))
+        distance_to_new_2 = np.sqrt(np.power(current_x - new_x2, 2) + np.power(current_y - new_y2, 2))
+        distance_to_new_3 = np.sqrt(np.power(current_x - new_x3, 2) + np.power(current_y - new_y3, 2))
+        distance_to_new_4 = np.sqrt(np.power(current_x - new_x4, 2) + np.power(current_y - new_y4, 2))
+        quadrant_x1 = new_x1
+        quadrant_y1 = new_y1
+        if distance_to_new_1 > distance_to_new_2:
+            quadrant_x1 = new_x2
+            quadrant_y1 = new_y2
+        quadrant_x3 = new_x3
+        quadrant_y3 = new_y3
+        if distance_to_new_3 > distance_to_new_4:
+            quadrant_x3 = new_x4
+            quadrant_y3 = new_y4
+        # get the middle point bw (quadrant_x1, quadrant_y1) and (quadrant_x3,quadrant_y3)
+        median_x = (quadrant_x1 + quadrant_x3) / 2
+        median_y = (quadrant_y1 + quadrant_y3) / 2
+        #get the slope of (int_x, int_y), (median_x, median_y) and a perpendicular
+        median_slope = (int_x - median_x) / (int_y - median_y)
+        perpendicular_slope = -1 / median_slope
+        #let's get a line with the edge intersection point and the perpendicular slope
+        # to get the 2 points for our virtual edge, I'll use 1000 and -1000 to have a very long edge to make 
+        # sure the particle hits it
+        virtual_edge_x1 = 1000.0 #random number to get another point
+        virtual_edge_y1 = ((virtual_edge_x1 - int_x) * perpendicular_slope) / int_y
+        virtual_edge_x2 = -1000.0 #random number to get another point
+        virtual_edge_y2 = ((virtual_edge_x2 - int_x) * perpendicular_slope) / int_y
+        virtual_edge = Edge(virtual_edge_x1, virtual_edge_y1, virtual_edge_x2, virtual_edge_y2, layer)
+        return self._specular(n_f, virtual_edge)
 
     def _corner_scatter(self, edge_0, edge_1):
         # Convolve the probility distributions
