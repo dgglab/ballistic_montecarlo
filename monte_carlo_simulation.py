@@ -322,7 +322,7 @@ class Simulation:
             segment_y4 = self._bandstructure.r[1][next_real_segment]
             if line_slope == float('inf'):
                 if (line_x1 >= segment_x3 and line_x1 < segment_x4) or (line_x1 > segment_x4 and line_x1 <= segment_x3):
-                    segment_factor = (segment_x4 - line_x1) / (segment_x4 - segment_x3)
+                    segment_factor = (line_x1 - segment_x3) / (segment_x4 - segment_x3)
                     matching_segments.append((real_segment, segment_factor))
             else:
                 line_x2 = 100.0 #random number to get another point
@@ -334,8 +334,9 @@ class Simulation:
                     if (intersection_x <= segment_x3 and intersection_x >= segment_x4) or (intersection_x <= segment_x4 and intersection_x >= segment_x3):
                         #we use y instead of x, we know the segment is not horizontal because we did that
                         # when the line_slope == inf so y should be good for all other cases
-                        segment_factor = (segment_y4 - line_y1) / (segment_y4 - segment_y3)
+                        segment_factor = (intersection_y - segment_y3) / (segment_y4 - segment_y3)
                         matching_segments.append((real_segment, segment_factor))
+
         #pythagoras on each segment to check which one is the closest
         size1 = len(matching_segments)
         min_point = (-1, -1)
