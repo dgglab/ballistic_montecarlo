@@ -176,7 +176,6 @@ class Simulation:
                         (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                 else:
                     n_f_new = self._specular(n_f_int, edge)
-
                     step_params.append(
                         (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
 
@@ -195,7 +194,6 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                     else:
-                        # Replace with specular reflection
                         n_f_new = self._specular(n_f_int, edge)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
@@ -221,7 +219,6 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.SCATTER, None))
                     else:
-                        # Replace with specular reflection
                         n_f_new = self._specular(n_f_int, edge)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.REFLECT, None))
@@ -311,8 +308,9 @@ class Simulation:
         line_slope = float('inf') 
         if xd != 0:
             line_slope = yd/xd
-        line_x1 = self._bandstructure.r[0][n_f[0]]
-        line_y1 = self._bandstructure.r[1][n_f[0]]
+        next_n = (n_f[0] + 1) % len(self._bandstructure.r[0])
+        line_x1 = self._bandstructure.r[0][n_f[0]] + (self._bandstructure.r[0][next_n] - self._bandstructure.r[0][n_f[0]]) * n_f[1]
+        line_y1 = self._bandstructure.r[1][n_f[0]] + (self._bandstructure.r[1][next_n] - self._bandstructure.r[1][n_f[0]]) * n_f[1]
         matching_segments = list()
         # go through all the segments and try to find the intersecting point
         #   if an intersection exists, add it to matching_segments
@@ -324,7 +322,8 @@ class Simulation:
             segment_y4 = self._bandstructure.r[1][next_real_segment]
             if line_slope == float('inf'):
                 if (line_x1 >= segment_x3 and line_x1 < segment_x4) or (line_x1 > segment_x4 and line_x1 <= segment_x3):
-                    matching_segments.append(real_segment)
+                    segment_factor = (line_x1 - segment_x3) / (segment_x4 - segment_x3)
+                    matching_segments.append((real_segment, segment_factor))
             else:
                 line_x2 = 100.0 #random number to get another point
                 line_y2 = ((line_x2 - line_x1) * line_slope) / line_y1
@@ -333,32 +332,28 @@ class Simulation:
                     intersection_x = ((line_x1*line_y2 - line_y1*line_x2) * (segment_x3 - segment_x4) - (line_x1 - line_x2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
                     intersection_y = ((line_x1*line_y2 - line_y1*line_x2) * (segment_y3 - segment_y4) - (line_y1 - line_y2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
                     if (intersection_x <= segment_x3 and intersection_x >= segment_x4) or (intersection_x <= segment_x4 and intersection_x >= segment_x3):
-                        matching_segments.append(real_segment)
-        #we find the one that matches the current position and then we discard every other one as
-        # those would get out of the figure
-        new_matching_segments = list()
-        for existing_finder in range(len(matching_segments)):
-            if matching_segments[existing_finder] == n_f[0]:
-                goes_out_of_the_figure = True
-                for odd_detector in range(len(matching_segments)):
-                    if not goes_out_of_the_figure:
-                        new_matching_segments.append(matching_segments[(odd_detector+existing_finder)%len(matching_segments)])
-                    goes_out_of_the_figure = not goes_out_of_the_figure 
+                        #we use y instead of x, we know the segment is not horizontal because we did that
+                        # when the line_slope == inf so y should be good for all other cases
+                        segment_factor = (intersection_y - segment_y3) / (segment_y4 - segment_y3)
+                        matching_segments.append((real_segment, segment_factor))
+
         #pythagoras on each segment to check which one is the closest
-        min_point = -1
+        size1 = len(matching_segments)
+        min_point = (-1, -1)
         min_distance = float('inf')
-        for testing_point in new_matching_segments:
-            segment_x3 = self._bandstructure.r[0][testing_point]
-            segment_y3 = self._bandstructure.r[1][testing_point]
-            this_distance = np.sqrt(np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
-            if min_distance > this_distance:
-                min_distance = this_distance
-                min_distance = testing_point
-        if min_distance == -1:
-            die('Can\'t find an intersection for specular reflection')
+        for testing_point in matching_segments:
+            if testing_point[0] != n_f[0]:
+                segment_x3 = self._bandstructure.r[0][testing_point[0]]
+                segment_y3 = self._bandstructure.r[1][testing_point[0]]
+                this_distance = np.sqrt(np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
+                if min_distance > this_distance:
+                    min_distance = this_distance
+                    min_point = testing_point
+        if min_point == (-1, -1):
+            raise Exception('Can\'t find an intersection for specular reflection')
             return
         else:
-            return (min_point, 1)
+            return min_point
 
     # Is this method really necessary?
     def _scatter(self, edge):
