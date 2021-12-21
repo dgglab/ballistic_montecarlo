@@ -311,10 +311,9 @@ class Simulation:
         if xd != 0:
             line_slope = yd/xd
         next_n = (n_f[0] + 1) % len(self._bandstructure.r[0])
-        line_x1 = self._bandstructure.r[0][n_f[0]] + (
-            self._bandstructure.r[0][next_n] - self._bandstructure.r[0][n_f[0]]) * n_f[1]
-        line_y1 = self._bandstructure.r[1][n_f[0]] + (
-            self._bandstructure.r[1][next_n] - self._bandstructure.r[1][n_f[0]]) * n_f[1]
+        line_x1, line_y1 = (
+            self._bandstructure.r[0][n_f[0]], self._bandstructure.r[1][n_f[0]]) + n_f[1]*self._bandstructure.dr[:, n_f[0]]
+
         matching_segments = list()
         # go through all the segments and try to find the intersecting point
         #   if an intersection exists, add it to matching_segments
@@ -332,7 +331,7 @@ class Simulation:
                     matching_segments.append((real_segment, segment_factor))
             else:
                 line_x2 = 100.0  # random number to get another point
-                line_y2 = ((line_x2 - line_x1) * line_slope) / line_y1
+                line_y2 = ((line_x2 - line_x1) * line_slope) + line_y1
                 denominator = (line_x1 - line_x2)*(segment_y3 - segment_y4) - \
                     (line_y1 - line_y2)*(segment_x3 - segment_x4)
                 if denominator != 0:
@@ -343,9 +342,8 @@ class Simulation:
                     if (intersection_x <= segment_x3 and intersection_x >= segment_x4) or (intersection_x <= segment_x4 and intersection_x >= segment_x3):
                         # we use y instead of x, we know the segment is not horizontal because we did that
                         # when the line_slope == inf so y should be good for all other cases
-                        segment_factor = 1 - \
-                            (intersection_y - segment_y3) / \
-                            (segment_y4 - segment_y3)
+                        segment_factor = (
+                            intersection_y - segment_y3) / (segment_y4 - segment_y3)
                         matching_segments.append(
                             (real_segment, segment_factor))
 
@@ -367,7 +365,7 @@ class Simulation:
                 'Can\'t find an intersection for specular reflection')
             return
         else:
-            return min_point
+            return matching_segments, min_point
 
     # Is this method really necessary?
     def _scatter(self, edge):
