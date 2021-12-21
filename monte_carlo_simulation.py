@@ -263,7 +263,8 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                     else:
-                        n_f_new = self._corner_specular(n_f, edge_0, edge_1, layer)
+                        n_f_new = self._corner_specular(
+                            n_f, edge_0, edge_1, layer)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
             else:
@@ -289,7 +290,8 @@ class Simulation:
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CSCATTER, None))
                     else:
-                        n_f_new = self._corner_specular(n_f, edge_0, edge_1, layer)
+                        n_f_new = self._corner_specular(
+                            n_f, edge_0, edge_1, layer)
                         step_params.append(
                             (n_f_new, x_int, y_int, TrajectoryState.CREFLECT, None))
 
@@ -302,42 +304,52 @@ class Simulation:
         return n_f_out, x_out, y_out
 
     def _specular(self, n_f, edge):
-        xd = edge.xs[0] - edge.xs[1] 
-        yd = edge.ys[0] - edge.ys[1] 
-        #get the slope of the edge
-        line_slope = float('inf') 
+        xd = edge.xs[0] - edge.xs[1]
+        yd = edge.ys[0] - edge.ys[1]
+        # get the slope of the edge
+        line_slope = float('inf')
         if xd != 0:
             line_slope = yd/xd
         next_n = (n_f[0] + 1) % len(self._bandstructure.r[0])
-        line_x1 = self._bandstructure.r[0][n_f[0]] + (self._bandstructure.r[0][next_n] - self._bandstructure.r[0][n_f[0]]) * n_f[1]
-        line_y1 = self._bandstructure.r[1][n_f[0]] + (self._bandstructure.r[1][next_n] - self._bandstructure.r[1][n_f[0]]) * n_f[1]
+        line_x1 = self._bandstructure.r[0][n_f[0]] + (
+            self._bandstructure.r[0][next_n] - self._bandstructure.r[0][n_f[0]]) * n_f[1]
+        line_y1 = self._bandstructure.r[1][n_f[0]] + (
+            self._bandstructure.r[1][next_n] - self._bandstructure.r[1][n_f[0]]) * n_f[1]
         matching_segments = list()
         # go through all the segments and try to find the intersecting point
         #   if an intersection exists, add it to matching_segments
         for real_segment in range(0, len(self._bandstructure.r[0])):
-            next_real_segment = (real_segment + 1) % len(self._bandstructure.r[0])
+            next_real_segment = (
+                real_segment + 1) % len(self._bandstructure.r[0])
             segment_x3 = self._bandstructure.r[0][real_segment]
             segment_y3 = self._bandstructure.r[1][real_segment]
             segment_x4 = self._bandstructure.r[0][next_real_segment]
             segment_y4 = self._bandstructure.r[1][next_real_segment]
             if line_slope == float('inf'):
                 if (line_x1 >= segment_x3 and line_x1 < segment_x4) or (line_x1 > segment_x4 and line_x1 <= segment_x3):
-                    segment_factor = (line_x1 - segment_x3) / (segment_x4 - segment_x3)
+                    segment_factor = (line_x1 - segment_x3) / \
+                        (segment_x4 - segment_x3)
                     matching_segments.append((real_segment, segment_factor))
             else:
-                line_x2 = 100.0 #random number to get another point
+                line_x2 = 100.0  # random number to get another point
                 line_y2 = ((line_x2 - line_x1) * line_slope) / line_y1
-                denominator = (line_x1 - line_x2)*(segment_y3 - segment_y4) - (line_y1 - line_y2)*(segment_x3 - segment_x4)
-                if denominator !=0:
-                    intersection_x = ((line_x1*line_y2 - line_y1*line_x2) * (segment_x3 - segment_x4) - (line_x1 - line_x2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
-                    intersection_y = ((line_x1*line_y2 - line_y1*line_x2) * (segment_y3 - segment_y4) - (line_y1 - line_y2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
+                denominator = (line_x1 - line_x2)*(segment_y3 - segment_y4) - \
+                    (line_y1 - line_y2)*(segment_x3 - segment_x4)
+                if denominator != 0:
+                    intersection_x = ((line_x1*line_y2 - line_y1*line_x2) * (segment_x3 - segment_x4) - (
+                        line_x1 - line_x2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
+                    intersection_y = ((line_x1*line_y2 - line_y1*line_x2) * (segment_y3 - segment_y4) - (
+                        line_y1 - line_y2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
                     if (intersection_x <= segment_x3 and intersection_x >= segment_x4) or (intersection_x <= segment_x4 and intersection_x >= segment_x3):
-                        #we use y instead of x, we know the segment is not horizontal because we did that
+                        # we use y instead of x, we know the segment is not horizontal because we did that
                         # when the line_slope == inf so y should be good for all other cases
-                        segment_factor = (intersection_y - segment_y3) / (segment_y4 - segment_y3)
-                        matching_segments.append((real_segment, segment_factor))
+                        segment_factor = 1 - \
+                            (intersection_y - segment_y3) / \
+                            (segment_y4 - segment_y3)
+                        matching_segments.append(
+                            (real_segment, segment_factor))
 
-        #pythagoras on each segment to check which one is the closest
+        # pythagoras on each segment to check which one is the closest
         size1 = len(matching_segments)
         min_point = (-1, -1)
         min_distance = float('inf')
@@ -345,12 +357,14 @@ class Simulation:
             if testing_point[0] != n_f[0]:
                 segment_x3 = self._bandstructure.r[0][testing_point[0]]
                 segment_y3 = self._bandstructure.r[1][testing_point[0]]
-                this_distance = np.sqrt(np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
+                this_distance = np.sqrt(
+                    np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
                 if min_distance > this_distance:
                     min_distance = this_distance
                     min_point = testing_point
         if min_point == (-1, -1):
-            raise Exception('Can\'t find an intersection for specular reflection')
+            raise Exception(
+                'Can\'t find an intersection for specular reflection')
             return
         else:
             return min_point
@@ -360,7 +374,7 @@ class Simulation:
         return edge.get_injection_index()
 
     def _corner_specular(self, n_f, edge_0, edge_1, layer):
-        #first we get the intersection of the 2 edge lines
+        # first we get the intersection of the 2 edge lines
         # with that point as a center, we trace a circle that cuts the 2 edge lines in 2 points each (new_x, new_y)
         # for each one of the 2 pairs, we check the distance to the particle point to determine the quadrant
         # once we have the 2 new points that in the triangle with the intersection contains the particule
@@ -376,17 +390,20 @@ class Simulation:
         y3 = edge_1.ys[0]
         x4 = edge_1.xs[1]
         y4 = edge_1.ys[1]
-        #get the intersection point of the 2 edges
+        # get the intersection point of the 2 edges
         denominator = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
-        if denominator !=0:
-            intersection_x = ((x1*y2 - y1*x2) * (x3 - x4) - (x1 - x2) * (x3*y4 - y3*x4)) / denominator
-            intersection_y = ((x1*y2 - y1*x2) * (y3 - y4) - (y1 - y2) * (x3*y4 - y3*x4)) / denominator
-        #distance bw one edge point and the intersection
-        distance_a = np.sqrt(np.power(x1 - intersection_x, 2) + np.power(y1 - intersection, 2)) 
-        #the proportion that needs to be applied to get to a random distance of 1000
+        if denominator != 0:
+            intersection_x = ((x1*y2 - y1*x2) * (x3 - x4) -
+                              (x1 - x2) * (x3*y4 - y3*x4)) / denominator
+            intersection_y = ((x1*y2 - y1*x2) * (y3 - y4) -
+                              (y1 - y2) * (x3*y4 - y3*x4)) / denominator
+        # distance bw one edge point and the intersection
+        distance_a = np.sqrt(np.power(x1 - intersection_x,
+                                      2) + np.power(y1 - intersection, 2))
+        # the proportion that needs to be applied to get to a random distance of 1000
         proportion_a = 1000 / distance_a
         proportion_b = 1000 / distance_b
-        #the shift to achieve the new distance from the intersection
+        # the shift to achieve the new distance from the intersection
         new_x_shift_a = (int_x - x1) * proportion_a
         new_y_shift_a = (int_y - y1) * proportion_a
         new_x_shift_b = (int_x - x3) * proportion_b
@@ -400,15 +417,19 @@ class Simulation:
         new_y3 = int_y + new_y_shift_b
         new_x4 = int_x - new_x_shift_b
         new_y4 = int_y - new_y_shift_b
-        #the particle point
+        # the particle point
         current_x = self._bandstructure.r[0][n_f[0]]
         current_y = self._bandstructure.r[1][n_f[0]]
-        #from each edge line decide which one of the 2 points is the nearest to the particle
+        # from each edge line decide which one of the 2 points is the nearest to the particle
         # this will give us the quadrant / triangle we are in
-        distance_to_new_1 = np.sqrt(np.power(current_x - new_x1, 2) + np.power(current_y - new_y1, 2))
-        distance_to_new_2 = np.sqrt(np.power(current_x - new_x2, 2) + np.power(current_y - new_y2, 2))
-        distance_to_new_3 = np.sqrt(np.power(current_x - new_x3, 2) + np.power(current_y - new_y3, 2))
-        distance_to_new_4 = np.sqrt(np.power(current_x - new_x4, 2) + np.power(current_y - new_y4, 2))
+        distance_to_new_1 = np.sqrt(
+            np.power(current_x - new_x1, 2) + np.power(current_y - new_y1, 2))
+        distance_to_new_2 = np.sqrt(
+            np.power(current_x - new_x2, 2) + np.power(current_y - new_y2, 2))
+        distance_to_new_3 = np.sqrt(
+            np.power(current_x - new_x3, 2) + np.power(current_y - new_y3, 2))
+        distance_to_new_4 = np.sqrt(
+            np.power(current_x - new_x4, 2) + np.power(current_y - new_y4, 2))
         quadrant_x1 = new_x1
         quadrant_y1 = new_y1
         if distance_to_new_1 > distance_to_new_2:
@@ -422,17 +443,20 @@ class Simulation:
         # get the middle point bw (quadrant_x1, quadrant_y1) and (quadrant_x3,quadrant_y3)
         median_x = (quadrant_x1 + quadrant_x3) / 2
         median_y = (quadrant_y1 + quadrant_y3) / 2
-        #get the slope of (int_x, int_y), (median_x, median_y) and a perpendicular
+        # get the slope of (int_x, int_y), (median_x, median_y) and a perpendicular
         median_slope = (int_x - median_x) / (int_y - median_y)
         perpendicular_slope = -1 / median_slope
-        #let's get a line with the edge intersection point and the perpendicular slope
-        # to get the 2 points for our virtual edge, I'll use 1000 and -1000 to have a very long edge to make 
+        # let's get a line with the edge intersection point and the perpendicular slope
+        # to get the 2 points for our virtual edge, I'll use 1000 and -1000 to have a very long edge to make
         # sure the particle hits it
-        virtual_edge_x1 = 1000.0 #random number to get another point
-        virtual_edge_y1 = ((virtual_edge_x1 - int_x) * perpendicular_slope) / int_y
-        virtual_edge_x2 = -1000.0 #random number to get another point
-        virtual_edge_y2 = ((virtual_edge_x2 - int_x) * perpendicular_slope) / int_y
-        virtual_edge = Edge(virtual_edge_x1, virtual_edge_y1, virtual_edge_x2, virtual_edge_y2, layer)
+        virtual_edge_x1 = 1000.0  # random number to get another point
+        virtual_edge_y1 = ((virtual_edge_x1 - int_x) *
+                           perpendicular_slope) / int_y
+        virtual_edge_x2 = -1000.0  # random number to get another point
+        virtual_edge_y2 = ((virtual_edge_x2 - int_x) *
+                           perpendicular_slope) / int_y
+        virtual_edge = Edge(virtual_edge_x1, virtual_edge_y1,
+                            virtual_edge_x2, virtual_edge_y2, layer)
         return self._specular(n_f, virtual_edge)
 
     def _corner_scatter(self, edge_0, edge_1):
@@ -512,8 +536,8 @@ class Simulation:
         y_int = coords[1][1]
         x_new = coords[2][0]
         y_new = coords[2][1]
-        f = np.sqrt(((x_int - x)**2 + (y_int-y)**2) /
-                    ((x_new - x)**2 + (y_new - y)**2))
+        f = n_f[1] * (1 - np.sqrt(((x_int - x)**2 + (y_int - y)**2) /
+                                  ((x_new - x)**2 + (y_new - y)**2)))
         return (n_f[0], f)
 
     def _get_crosses(self, step_coords):
