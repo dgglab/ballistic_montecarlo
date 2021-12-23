@@ -326,6 +326,7 @@ class Simulation:
                     min_distance = this_distance
                     reflected_state = testing_point
 
+        # TODO check in injection probability from _frame
         if not valid_reflection:
             raise Exception(
                 'Can\'t find an intersection for specular reflection')
