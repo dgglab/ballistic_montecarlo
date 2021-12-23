@@ -305,6 +305,35 @@ class Simulation:
         return n_f_out, x_out, y_out
 
     def _specular(self, n_f, edge):
+
+        fermi_intersections = self._get_fermi_intersections(n_f, edge)
+
+        line_x1, line_y1 = (
+            self._bandstructure.r[0][n_f[0]], self._bandstructure.r[1][n_f[0]]) + (1-n_f[1])*self._bandstructure.dr[:, n_f[0]]
+
+        # pythagoras on each segment to check which one is the closest
+        valid_reflection = False
+        min_distance = float('inf')
+        for testing_point in fermi_intersections:
+            if testing_point[0] != n_f[0]:
+                valid_reflection = True
+
+                segment_x3 = self._bandstructure.r[0][testing_point[0]]
+                segment_y3 = self._bandstructure.r[1][testing_point[0]]
+                this_distance = np.sqrt(
+                    np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
+                if this_distance < min_distance:
+                    min_distance = this_distance
+                    reflected_state = testing_point
+
+        if not valid_reflection:
+            raise Exception(
+                'Can\'t find an intersection for specular reflection')
+            return
+        else:
+            return reflected_state
+
+    def _get_fermi_intersections(self, n_f, edge):
         xdel = edge.xs[0] - edge.xs[1]
         ydel = edge.ys[0] - edge.ys[1]
         # get the slope of the edge
@@ -322,16 +351,14 @@ class Simulation:
             line_x2 = line_x1
             line_y2 = line_y1 + 100.0
 
-        matching_segments = list()
+        fermi_intersections = list()
         # go through all the segments and try to find the intersecting point
-        #   if an intersection exists, add it to matching_segments
-        for real_segment in range(0, len(self._bandstructure.r[0])):
-            next_real_segment = (
-                real_segment + 1) % len(self._bandstructure.r[0])
-            segment_x3 = self._bandstructure.r[0][real_segment]
-            segment_y3 = self._bandstructure.r[1][real_segment]
-            segment_x4 = self._bandstructure.r[0][next_real_segment]
-            segment_y4 = self._bandstructure.r[1][next_real_segment]
+        #   if an intersection exists, add it to fermi_intersections
+        for segment_index, (segment_x3, segment_y3) in enumerate(zip(self._bandstructure.r[0][:-1], self._bandstructure.r[1][:-1])):
+            # recall that r is closed in that the first and last point are the same, so we don't want to double check
+
+            segment_x4 = segment_x3 + self._bandstructure.dr[0][segment_index]
+            segment_y4 = segment_y3 + self._bandstructure.dr[1][segment_index]
 
             intersection_x, intersection_y = self._calc_int_of_two_lines([(segment_x3, segment_y3), (segment_x4, segment_y4)],
                                                                          [(line_x1, line_y1), (line_x2, line_y2)])
@@ -341,30 +368,10 @@ class Simulation:
                     if (segment_y3 <= intersection_y and intersection_y <= segment_y4) or (segment_y4 <= intersection_y and intersection_y <= segment_y3):
                         segment_factor = 1 - (
                             intersection_y - segment_y3) / (segment_y4 - segment_y3)
-                        matching_segments.append(
-                            (real_segment, segment_factor))
+                        fermi_intersections.append(
+                            (segment_index, segment_factor))
+        return fermi_intersections
 
-        # pythagoras on each segment to check which one is the closest
-        size1 = len(matching_segments)
-        min_point = (-1, -1)
-        min_distance = float('inf')
-        for testing_point in matching_segments:
-            if testing_point[0] != n_f[0]:
-                segment_x3 = self._bandstructure.r[0][testing_point[0]]
-                segment_y3 = self._bandstructure.r[1][testing_point[0]]
-                this_distance = np.sqrt(
-                    np.power(line_x1-segment_x3, 2)+(np.power(line_y1-segment_y3, 2)))
-                if min_distance > this_distance:
-                    min_distance = this_distance
-                    min_point = testing_point
-        if min_point == (-1, -1):
-            raise Exception(
-                'Can\'t find an intersection for specular reflection')
-            return
-        else:
-            return matching_segments, min_point
-
-    # Is this method really necessary?
     def _scatter(self, edge):
         return edge.get_injection_index()
 
