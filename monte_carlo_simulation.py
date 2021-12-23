@@ -329,7 +329,6 @@ class Simulation:
         if not valid_reflection:
             raise Exception(
                 'Can\'t find an intersection for specular reflection')
-            return
         else:
             return reflected_state
 
