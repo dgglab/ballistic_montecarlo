@@ -1,3 +1,4 @@
+from math import isnan
 import time
 import pickle
 import os.path
@@ -304,15 +305,22 @@ class Simulation:
         return n_f_out, x_out, y_out
 
     def _specular(self, n_f, edge):
-        xd = edge.xs[0] - edge.xs[1]
-        yd = edge.ys[0] - edge.ys[1]
+        xdel = edge.xs[0] - edge.xs[1]
+        ydel = edge.ys[0] - edge.ys[1]
         # get the slope of the edge
         line_slope = float('inf')
-        if xd != 0:
-            line_slope = yd/xd
-        next_n = (n_f[0] + 1) % len(self._bandstructure.r[0])
+        if xdel != 0:
+            line_slope = ydel/xdel
+
         line_x1, line_y1 = (
-            self._bandstructure.r[0][n_f[0]], self._bandstructure.r[1][n_f[0]]) + n_f[1]*self._bandstructure.dr[:, n_f[0]]
+            self._bandstructure.r[0][n_f[0]], self._bandstructure.r[1][n_f[0]]) + (1-n_f[1])*self._bandstructure.dr[:, n_f[0]]
+
+        if line_slope != float('inf'):
+            line_x2 = line_x1 + 100.0
+            line_y2 = ((line_x2 - line_x1) * line_slope) + line_y1
+        else:
+            line_x2 = line_x1
+            line_y2 = line_y1 + 100.0
 
         matching_segments = list()
         # go through all the segments and try to find the intersecting point
@@ -324,25 +332,14 @@ class Simulation:
             segment_y3 = self._bandstructure.r[1][real_segment]
             segment_x4 = self._bandstructure.r[0][next_real_segment]
             segment_y4 = self._bandstructure.r[1][next_real_segment]
-            if line_slope == float('inf'):
-                if (line_x1 >= segment_x3 and line_x1 < segment_x4) or (line_x1 > segment_x4 and line_x1 <= segment_x3):
-                    segment_factor = (line_x1 - segment_x3) / \
-                        (segment_x4 - segment_x3)
-                    matching_segments.append((real_segment, segment_factor))
-            else:
-                line_x2 = 100.0  # random number to get another point
-                line_y2 = ((line_x2 - line_x1) * line_slope) + line_y1
-                denominator = (line_x1 - line_x2)*(segment_y3 - segment_y4) - \
-                    (line_y1 - line_y2)*(segment_x3 - segment_x4)
-                if denominator != 0:
-                    intersection_x = ((line_x1*line_y2 - line_y1*line_x2) * (segment_x3 - segment_x4) - (
-                        line_x1 - line_x2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
-                    intersection_y = ((line_x1*line_y2 - line_y1*line_x2) * (segment_y3 - segment_y4) - (
-                        line_y1 - line_y2) * (segment_x3*segment_y4 - segment_y3*segment_x4)) / denominator
-                    if (intersection_x <= segment_x3 and intersection_x >= segment_x4) or (intersection_x <= segment_x4 and intersection_x >= segment_x3):
-                        # we use y instead of x, we know the segment is not horizontal because we did that
-                        # when the line_slope == inf so y should be good for all other cases
-                        segment_factor = (
+
+            intersection_x, intersection_y = self._calc_int_of_two_lines([(segment_x3, segment_y3), (segment_x4, segment_y4)],
+                                                                         [(line_x1, line_y1), (line_x2, line_y2)])
+
+            if not np.isnan(intersection_x) and not np.isnan(intersection_y):
+                if (segment_x3 <= intersection_x and intersection_x <= segment_x4) or (segment_x4 <= intersection_x and intersection_x <= segment_x3):
+                    if (segment_y3 <= intersection_y and intersection_y <= segment_y4) or (segment_y4 <= intersection_y and intersection_y <= segment_y3):
+                        segment_factor = 1 - (
                             intersection_y - segment_y3) / (segment_y4 - segment_y3)
                         matching_segments.append(
                             (real_segment, segment_factor))
@@ -519,6 +516,10 @@ class Simulation:
         return intersections
 
     def get_ts_us(self, x01, x02, x23, y01, y02, y23):
+        '''
+        calculate useful quantities for finding intersection of two line segments
+        following notation from here but zero indexed: https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
+        '''
         with np.errstate(divide='ignore'):
             ts = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
             us = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
@@ -559,3 +560,28 @@ class Simulation:
                 line = self._ohmic_lines.lines_as_edges[i]
                 crosses.append(line)
         return crosses
+
+    def _calc_int_of_two_lines(self, line0_cords, line1_cords):
+        '''
+        Calculating the intersection of two lines
+        https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
+        '''
+        x1 = line0_cords[0][0]
+        y1 = line0_cords[0][1]
+        x2 = line0_cords[1][0]
+        y2 = line0_cords[1][1]
+
+        x3 = line1_cords[0][0]
+        y3 = line1_cords[0][1]
+        x4 = line1_cords[1][0]
+        y4 = line1_cords[1][1]
+
+        denominator = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
+        if denominator != 0:
+            x_int = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)
+                     * (x3*y4 - y3*x4))/denominator
+            y_int = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)
+                     * (x3*y4 - y3*x4))/denominator
+            return (x_int, y_int)
+        else:
+            return (np.nan, np.nan)
