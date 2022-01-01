@@ -401,24 +401,26 @@ class Simulation:
                               (y1 - y2) * (x3*y4 - y3*x4)) / denominator
         # distance bw one edge point and the intersection
         distance_a = np.sqrt(np.power(x1 - intersection_x,
-                                      2) + np.power(y1 - intersection, 2))
+                                      2) + np.power(y1 - intersection_y, 2))
+        distance_b = np.sqrt(np.power(x2 - intersection_x,
+                                      2) + np.power(y2 - intersection_y, 2))
         # the proportion that needs to be applied to get to a random distance of 1000
         proportion_a = 1000 / distance_a
         proportion_b = 1000 / distance_b
         # the shift to achieve the new distance from the intersection
-        new_x_shift_a = (int_x - x1) * proportion_a
-        new_y_shift_a = (int_y - y1) * proportion_a
-        new_x_shift_b = (int_x - x3) * proportion_b
-        new_y_shift_b = (int_y - y3) * proportion_b
+        new_x_shift_a = (intersection_x - x1) * proportion_a
+        new_y_shift_a = (intersection_y - y1) * proportion_a
+        new_x_shift_b = (intersection_x - x3) * proportion_b
+        new_y_shift_b = (intersection_y - y3) * proportion_b
         # 4 points, equidistant to (int_x int_y)
-        new_x1 = int_x + new_x_shift_a
-        new_y1 = int_y + new_y_shift_a
-        new_x2 = int_x - new_x_shift_a
-        new_y2 = int_y - new_y_shift_a
-        new_x3 = int_x + new_x_shift_b
-        new_y3 = int_y + new_y_shift_b
-        new_x4 = int_x - new_x_shift_b
-        new_y4 = int_y - new_y_shift_b
+        new_x1 = intersection_x + new_x_shift_a
+        new_y1 = intersection_y + new_y_shift_a
+        new_x2 = intersection_x - new_x_shift_a
+        new_y2 = intersection_y - new_y_shift_a
+        new_x3 = intersection_x + new_x_shift_b
+        new_y3 = intersection_y + new_y_shift_b
+        new_x4 = intersection_x - new_x_shift_b
+        new_y4 = intersection_y - new_y_shift_b
         # the particle point
         current_x = self._bandstructure.r[0][n_f[0]]
         current_y = self._bandstructure.r[1][n_f[0]]
@@ -445,18 +447,18 @@ class Simulation:
         # get the middle point bw (quadrant_x1, quadrant_y1) and (quadrant_x3,quadrant_y3)
         median_x = (quadrant_x1 + quadrant_x3) / 2
         median_y = (quadrant_y1 + quadrant_y3) / 2
-        # get the slope of (int_x, int_y), (median_x, median_y) and a perpendicular
-        median_slope = (int_x - median_x) / (int_y - median_y)
+        # get the slope of (intersection_x, intersection_y), (median_x, median_y) and a perpendicular
+        median_slope = (intersection_x - median_x) / (intersection_y - median_y)
         perpendicular_slope = -1 / median_slope
         # let's get a line with the edge intersection point and the perpendicular slope
         # to get the 2 points for our virtual edge, I'll use 1000 and -1000 to have a very long edge to make
         # sure the particle hits it
         virtual_edge_x1 = 1000.0  # random number to get another point
-        virtual_edge_y1 = ((virtual_edge_x1 - int_x) *
-                           perpendicular_slope) / int_y
+        virtual_edge_y1 = ((virtual_edge_x1 - intersection_x) *
+                           perpendicular_slope) / intersection_y
         virtual_edge_x2 = -1000.0  # random number to get another point
-        virtual_edge_y2 = ((virtual_edge_x2 - int_x) *
-                           perpendicular_slope) / int_y
+        virtual_edge_y2 = ((virtual_edge_x2 - intersection_x) *
+                           perpendicular_slope) / intersection_y
         virtual_edge = Edge(virtual_edge_x1, virtual_edge_y1,
                             virtual_edge_x2, virtual_edge_y2, layer)
         return self._specular(n_f, virtual_edge)
