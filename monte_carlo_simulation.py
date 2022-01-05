@@ -7,6 +7,7 @@ import numpy as np
 from shapely.geometry import Point
 from enum import IntEnum
 from copy import deepcopy
+from decimal import Decimal
 
 from ballistic_montecarlo.geo.caustic_frame import Edge, OhmicLines
 from ballistic_montecarlo.bandstructure.caustic_bandstructure import Bandstructure
@@ -315,7 +316,7 @@ class Simulation:
         valid_reflection = False
         min_distance = float('inf')
         for testing_point in fermi_intersections:
-            if testing_point[0] != n_f[0]:
+            if testing_point[0] != n_f[0] and edge.in_prob[testing_point[0]] != 0:
                 valid_reflection = True
 
                 segment_x3 = self._bandstructure.r[0][testing_point[0]]
@@ -326,7 +327,6 @@ class Simulation:
                     min_distance = this_distance
                     reflected_state = testing_point
 
-        # TODO check in injection probability from _frame
         if not valid_reflection:
             raise Exception(
                 'Can\'t find an intersection for specular reflection')
@@ -366,8 +366,12 @@ class Simulation:
             if not np.isnan(intersection_x) and not np.isnan(intersection_y):
                 if (segment_x3 <= intersection_x and intersection_x <= segment_x4) or (segment_x4 <= intersection_x and intersection_x <= segment_x3):
                     if (segment_y3 <= intersection_y and intersection_y <= segment_y4) or (segment_y4 <= intersection_y and intersection_y <= segment_y3):
-                        segment_factor = 1 - (
-                            intersection_y - segment_y3) / (segment_y4 - segment_y3)
+                        if segment_y4 == segment_y3:
+                            segment_factor = 1 - (
+                                    intersection_x - segment_x3) / (segment_x4 - segment_x3)
+                        else:
+                            segment_factor = 1 - (
+                                intersection_y - segment_y3) / (segment_y4 - segment_y3)
                         fermi_intersections.append(
                             (segment_index, segment_factor))
         return fermi_intersections
@@ -575,15 +579,15 @@ class Simulation:
         Calculating the intersection of two lines
         https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
         '''
-        x1 = line0_cords[0][0]
-        y1 = line0_cords[0][1]
-        x2 = line0_cords[1][0]
-        y2 = line0_cords[1][1]
+        x1 = Decimal(line0_cords[0][0])
+        y1 = Decimal(line0_cords[0][1])
+        x2 = Decimal(line0_cords[1][0])
+        y2 = Decimal(line0_cords[1][1])
 
-        x3 = line1_cords[0][0]
-        y3 = line1_cords[0][1]
-        x4 = line1_cords[1][0]
-        y4 = line1_cords[1][1]
+        x3 = Decimal(line1_cords[0][0])
+        y3 = Decimal(line1_cords[0][1])
+        x4 = Decimal(line1_cords[1][0])
+        y4 = Decimal(line1_cords[1][1])
 
         denominator = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
         if denominator != 0:
@@ -591,6 +595,6 @@ class Simulation:
                      * (x3*y4 - y3*x4))/denominator
             y_int = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)
                      * (x3*y4 - y3*x4))/denominator
-            return (x_int, y_int)
+            return (float(x_int), float(y_int))
         else:
             return (np.nan, np.nan)
