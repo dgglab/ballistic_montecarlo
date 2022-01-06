@@ -353,27 +353,35 @@ class Simulation:
 
         fermi_intersections = list()
         # go through all the segments and try to find the intersecting point
-        #   if an intersection exists, add it to fermi_intersections
+        # if an intersection exists, add it to fermi_intersections
+        # recall that r is closed in that the first and last point are the same, so we don't want to double check
         for segment_index, (segment_x3, segment_y3) in enumerate(zip(self._bandstructure.r[0][:-1], self._bandstructure.r[1][:-1])):
-            # recall that r is closed in that the first and last point are the same, so we don't want to double check
 
             segment_x4 = segment_x3 + self._bandstructure.dr[0][segment_index]
             segment_y4 = segment_y3 + self._bandstructure.dr[1][segment_index]
 
-            intersection_x, intersection_y = self._calc_int_of_two_lines([(segment_x3, segment_y3), (segment_x4, segment_y4)],
-                                                                         [(line_x1, line_y1), (line_x2, line_y2)])
+            x12 = segment_x3 - segment_x4
+            x13 = segment_x3 - line_x1
+            x34 = line_x1 - line_x2
+            y12 = segment_y3 - segment_y4
+            y13 = segment_y3 - line_y1
+            y34 = line_y1 - line_y2
+            t, _ = self.get_ts_us(x12, x13, x34, y12, y13, y34)
 
-            if not np.isnan(intersection_x) and not np.isnan(intersection_y):
-                if (segment_x3 <= intersection_x and intersection_x <= segment_x4) or (segment_x4 <= intersection_x and intersection_x <= segment_x3):
-                    if (segment_y3 <= intersection_y and intersection_y <= segment_y4) or (segment_y4 <= intersection_y and intersection_y <= segment_y3):
-                        if segment_y4 == segment_y3:
-                            segment_factor = 1 - (
-                                    intersection_x - segment_x3) / (segment_x4 - segment_x3)
-                        else:
-                            segment_factor = 1 - (
-                                intersection_y - segment_y3) / (segment_y4 - segment_y3)
-                        fermi_intersections.append(
-                            (segment_index, segment_factor))
+            # Check if the intersection is on the Fermi segment
+            if 0 <= t and t <= 1:
+                if segment_y4 == segment_y3:
+                    intersection_x = segment_x3 + t*(segment_x4 - segment_x3)
+                    segment_factor = 1 - (
+                        intersection_x - segment_x3) / (segment_x4 - segment_x3)
+                else:
+                    intersection_y = segment_y3 + t*(segment_y4 - segment_y3)
+                    segment_factor = 1 - (
+                        intersection_y - segment_y3) / (segment_y4 - segment_y3)
+
+                fermi_intersections.append(
+                    (segment_index, segment_factor))
+
         return fermi_intersections
 
     def _scatter(self, edge):
@@ -452,7 +460,8 @@ class Simulation:
         median_x = (quadrant_x1 + quadrant_x3) / 2
         median_y = (quadrant_y1 + quadrant_y3) / 2
         # get the slope of (intersection_x, intersection_y), (median_x, median_y) and a perpendicular
-        median_slope = (intersection_x - median_x) / (intersection_y - median_y)
+        median_slope = (intersection_x - median_x) / \
+            (intersection_y - median_y)
         perpendicular_slope = -1 / median_slope
         # let's get a line with the edge intersection point and the perpendicular slope
         # to get the 2 points for our virtual edge, I'll use 1000 and -1000 to have a very long edge to make
@@ -528,14 +537,14 @@ class Simulation:
                             intersections.append((edge, x_int, y_int))
         return intersections
 
-    def get_ts_us(self, x01, x02, x23, y01, y02, y23):
+    def get_ts_us(self, x12, x13, x34, y12, y13, y34):
         '''
         calculate useful quantities for finding intersection of two line segments
-        following notation from here but zero indexed: https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
+        following notation from here: https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
         '''
         with np.errstate(divide='ignore'):
-            ts = (x02*y23 - y02*x23) / (x01*y23 - y01*x23)
-            us = -(x01*y02 - y01*x02) / (x01*y23 - y01*x23)
+            ts = (x13*y34 - y13*x34) / (x12*y34 - y12*x34)
+            us = -(x12*y13 - y12*x13) / (x12*y34 - y12*x34)
         return ts, us
 
     def _get_n_f_intersection(self, n_f, coords):
